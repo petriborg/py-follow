@@ -27,3 +27,14 @@ optional arguments:
   -b PTRN, -B PTRN      match/highlight PTRN with blue
   -g PTRN, -G PTRN      match/highlight PTRN with green
 ```
+
+## Config file format
+```YAML
+---
+group-name:
+  - !color [my-color, '#000000']  # defines new color, my-color
+  - !match [FOO]                  # selects lines for display matching pattern FOO
+  - !match [FOO, my-color]        # same as above, but also highlights with my-color
+  - !highlight [FOO, my-color]    # highlights with my-color
+  - !nmatch [FOO]                 # inverted match - lines matching will not be selected
+```
