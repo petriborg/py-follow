@@ -277,13 +277,18 @@ def build_colors():
     codes["white"] = codes["bold"]
 
     # build color objects
-    return [Color(name, code, cli.get(name))
-            for name, code in codes.items()]
+    return {name: Color(name, code, cli.get(name))
+            for name, code in codes.items()}
 
 Color = namedtuple('Color', ['long', 'escape', 'short'])
+color_lookup = build_colors()
 Plain = Color('plain', '', 'e')
 Negative = Color('negative', '', 'v')  # negative match
-default_colors = [Plain, Negative] + build_colors()
+Red = color_lookup['red']
+Blue = color_lookup['blue']
+Yellow = color_lookup['yellow']
+Green = color_lookup['green']
+default_colors = [Plain, Negative] + list(color_lookup.values())
 
 
 def colorize(matches, line):
@@ -378,8 +383,8 @@ def search(session, queue, file):
                 gather(session.patterns, line, session.requires_match)
             if print_line:
                 try:
-                    # Dec  2 20:16:21
-                    dt = datetime.strptime(line[:14], '%b %d %H:%M%S')
+                    # example: Dec  2 20:16:21
+                    dt = datetime.strptime(line[:14], '%b %d %H:%M:%S')
                     dt = dt.replace(year=year)
                 except ValueError:
                     dt = datetime.now()
@@ -619,9 +624,12 @@ def parse_config_file(config_file, group_names):
     config_file = expand_path(config_file)
     if os.path.isfile(config_file):
         log.debug('parsing config %r, %r', config_file, group_names)
-        with open(config_file) as fh:
-            groups = parse_config(fh)
-            return chain(*[groups[z] for z in group_names])
+        try:
+            with open(config_file) as fh:
+                groups = parse_config(fh)
+                return chain(*[groups[z] for z in group_names])
+        except ImportError:
+            log.error('Config file requires yaml module')
     return []
 
 

@@ -3,8 +3,11 @@
 Generates a pseudo log for testing
 """
 
+import sys
 import time
 import random
+
+from datetime import datetime
 
 
 def get_words():
@@ -26,10 +29,15 @@ def get_words():
 
 
 def main():
+    use_dt = '--dt' in sys.argv or '--datetime' in sys.argv
     dictionary = get_words()
     while True:
         time.sleep(2)
-        print(' '.join([random.choice(dictionary) for _ in range(5)]))
+        line = (' '.join([random.choice(dictionary) for _ in range(5)]))
+        if use_dt:
+            dt = datetime.now().strftime('%b %d %H:%M:%S')
+            line = dt + ' ' + line
+        print(line)
 
 
 if __name__ == '__main__':
