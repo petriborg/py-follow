@@ -1,23 +1,52 @@
 import logging
 
 from textwrap import dedent
-from follow import parse_config, File, Follow, \
-    Match, Highlight, NegativeMatch, Color
+from follow import Red, \
+    File, Follow, Match, Highlight, NegativeMatch, Color, \
+    parse_yaml_config, parse_repr_config
 
 log = logging.getLogger()
+
+
+def test_8():
+    log.debug('test_8')
+
+    # test to make sure classes equality work right
+    assert Follow('foo') == Follow('foo')
+    assert Match('rez', 'red') == Match('rez', 'red')
+    assert Color(long='red', escape='\x1b[31;01m', short='r') == Red
+    assert {'a': Follow('a')} == {'a': Follow('a')}
+
+
+def test_7():
+    log.debug('test_7')
+    # test repr config file
+    assert parse_repr_config(dedent("""
+    {
+    'syslog': [
+        Follow('/foo/bar'),
+        Match('baz', 'red'),
+        ]
+    }
+    """)) == {
+        'syslog': [
+            Follow(path='/foo/bar', number=10),
+            Match(color='red', regex='baz')
+        ]
+    }
 
 
 def test_6():
     log.debug('test_6')
     # test yaml config file
 
-    assert parse_config(dedent("""
+    assert parse_yaml_config(dedent("""
     - test
     - basic
     - yaml
     """)) == ['test', 'basic', 'yaml']
 
-    assert repr(parse_config(dedent("""
+    assert repr(parse_yaml_config(dedent("""
     - !file [path/to/file]
     - !follow [path/to/file]
     """))) == repr([
@@ -25,13 +54,13 @@ def test_6():
         Follow('path/to/file'),
     ])
 
-    assert repr(parse_config(dedent("""
+    assert repr(parse_yaml_config(dedent("""
     - !color [red, '#00ff00', 'r']
     """))) == repr([
         Color('red', '#00ff00', 'r'),
     ])
 
-    assert repr(parse_config(dedent("""
+    assert repr(parse_yaml_config(dedent("""
     - !match [regex, !color [red, '#00ff00', 'r']]
     - !highlight [regex, !color [red, '#00ff00', 'r']]
     """))) == repr([
@@ -39,7 +68,7 @@ def test_6():
         Highlight(color=Color('red', '#00ff00', 'r'), regex='regex'),
     ])
 
-    assert repr(parse_config(dedent("""
+    assert repr(parse_yaml_config(dedent("""
     - !match [regex, red]
     - !highlight [regex, red]
     """))) == repr([
@@ -47,7 +76,7 @@ def test_6():
         Highlight(color='red', regex='regex'),
     ])
 
-    assert repr(parse_config(dedent("""
+    assert repr(parse_yaml_config(dedent("""
     - !negativematch [regex]
     - !negative-match [regex]
     - !nmatch [regex]

@@ -28,7 +28,7 @@ optional arguments:
   -g PTRN, -G PTRN      match/highlight PTRN with green
 ```
 
-## Config file format
+## Config file YAML format
 ```YAML
 ---
 group-name:
@@ -37,4 +37,13 @@ group-name:
   - !match [FOO, my-color]        # same as above, but also highlights with my-color
   - !highlight [FOO, my-color]    # highlights with my-color
   - !nmatch [FOO]                 # inverted match - lines matching will not be selected
+```
+
+## Config file REPR format
+```python
+{
+'group-name': [
+    Match('FOO', 'red'),
+    ]
+}
 ```

@@ -19,6 +19,7 @@ import logging
 import argparse
 import threading
 
+from io import StringIO
 from queue import PriorityQueue, Empty
 from datetime import datetime
 from itertools import chain
@@ -179,6 +180,9 @@ class File:
     def __exit__(self, *args):
         self.close()
 
+    def __eq__(self, other):
+        return self.path == other.path
+
     __repr__ = build_repr('File', 'path')
 Open = File
 
@@ -219,12 +223,16 @@ class Highlight:
         for m in self.regex.finditer(line):
             yield MatchResult(m, self.color)
 
+    def __eq__(self, other):
+        return self.color == other.color and \
+            self.regex == other.regex
+
     __repr__ = build_repr('Highlight', 'color', 'regex')
 
 
 class Match(Highlight):
     """Match object with color"""
-    def __init__(self, regex, color):
+    def __init__(self, regex, color='plain'):
         super().__init__(regex=regex, color=color)
         self._type = self.__class__.__name__
 
@@ -248,33 +256,35 @@ def build_colors():
         'blue': 'b',
         'yellow': 'y',
     }
-    dark_colors = ["black", "darkred", "darkgreen", "brown", "darkblue",
-                   "purple", "teal", "lightgray"]
-    light_colors = ["darkgray", "red", "green", "yellow", "blue",
-                    "fuchsia", "turquoise", "white"]
+    dark_colors = ['black', 'darkred', 'darkgreen', 'brown', 'darkblue',
+                   'purple', 'teal', 'lightgray']
+    light_colors = ['darkgray', 'red', 'green', 'yellow', 'blue',
+                    'fuchsia', 'turquoise', 'white']
 
-    esc = "\x1b["
+    esc = '\x1b['
 
     codes = {
-        "reset": esc + "39;49;00m",
+        'reset': esc + '39;49;00m',
 
-        "bold": esc + "01m",
-        "faint": esc + "02m",
-        "standout": esc + "03m",
-        "underline": esc + "04m",
-        "blink": esc + "05m",
-        "overline": esc + "06m",
+        'bold': esc + '01m',
+        'faint': esc + '02m',
+        'standout': esc + '03m',
+        'underline': esc + '04m',
+        'blink': esc + '05m',
+        'overline': esc + '06m',
     }
 
     for x, (d, l) in enumerate(zip(dark_colors, light_colors), 30):
-        codes[d] = esc + "%im" % x
-        codes[l] = esc + "%i;01m" % x
+        codes[d] = esc + '%im' % x
+        codes[l] = esc + '%i;01m' % x
 
     # aliases
-    codes["darkteal"] = codes["turquoise"]
-    codes["darkyellow"] = codes["brown"]
-    codes["fuscia"] = codes["fuchsia"]
-    codes["white"] = codes["bold"]
+    codes['darkteal'] = codes['turquoise']
+    codes['darkyellow'] = codes['brown']
+    codes['fuscia'] = codes['fuchsia']
+    codes['white'] = codes['bold']
+    codes['magenta'] = codes['purple']
+    codes['cyan'] = codes['teal']
 
     # build color objects
     return {name: Color(name, code, cli.get(name))
@@ -444,8 +454,8 @@ class Completer(ThreadPoolExecutor):
     @staticmethod
     def emit(*args):
         """Write bytes to stdout"""
-        stdout_write_bytes = sys.stdout.buffer.write
-        stdout_write_bytes(b''.join(args))
+        sys.stdout.buffer.write(b''.join(args))
+        sys.stdout.flush()
 
     def complete(self, prefix, index):
         """readline complete method"""
@@ -455,10 +465,11 @@ class Completer(ThreadPoolExecutor):
             self._possible = \
                 [n for n in chain(self.namespace, self._commands)
                  if n.startswith(prefix)]
+        result = None
         try:
             result = self._possible[index]
         except IndexError:
-            result = None
+            pass
         finally:
             log.debug('complete(%r,%r) => %r', prefix, index, result)
             return result
@@ -626,16 +637,47 @@ def parse_config_file(config_file, group_names):
         log.debug('parsing config %r, %r', config_file, group_names)
         try:
             with open(config_file) as fh:
-                groups = parse_config(fh)
+                content = fh.read()
+                buf_fh = StringIO(content)
+                # repr content must be a dictionary, search for { ignoring
+                # any comments coming before it
+                stripped = ''.join(ln.split('#',1)[0].strip() for ln in
+                                   content.splitlines(True))
+                if re.match(r'\A{', stripped, re.MULTILINE):
+                    groups = parse_repr_config(buf_fh)
+                else:
+                    groups = parse_yaml_config(buf_fh)
                 return chain(*[groups[z] for z in group_names])
         except ImportError:
             log.error('Config file requires yaml module')
+        except:
+            log.critical('Parse yaml config', exc_info=True)
     return []
 
 
-def parse_config(stream):
+def parse_repr_config(stream):
     """
-    read config_file, add patterns, etc to section.
+    read config_file, returns a dict of lists containing namespace objects.
+    Example -
+    {
+    'syslog': [
+      Follow('/var/log/messages'),
+      Highlight('regex', 'red'),
+      ]
+    }
+    """
+    if hasattr(stream, 'read'):
+        content = stream.read()
+    else:
+        log.debug('stream %r', stream)
+        content = stream
+    with_globals = [File, Follow, Highlight, Match, NegativeMatch, Color]
+    return eval(content, {c.__name__: c for c in with_globals})
+
+
+def parse_yaml_config(stream):
+    """
+    read config_file, add dict of lists containing namespace objects.
     expected format -
     section-name:
       - !ctor [args...]
@@ -653,7 +695,8 @@ def parse_config(stream):
             return class_object(*args)
         return ctor
 
-    for cls in [File, Follow, Highlight, Match, NegativeMatch, Color]:
+    with_globals = [File, Follow, Highlight, Match, NegativeMatch, Color]
+    for cls in with_globals:
         yaml.add_constructor('!'+cls.__name__.lower(),
                              build_ctor(cls))
     yaml.add_constructor('!nmatch', build_ctor(NegativeMatch))
