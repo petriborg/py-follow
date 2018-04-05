@@ -1,7 +1,10 @@
-import sys
+"""
+Test colorize
+"""
+
 import logging
 
-from follow import Color, Highlight, gather, colorize, \
+from follow.colorize import Highlight, gather, colorize, \
     Plain, Red, Blue, Green
 
 log = logging.getLogger()

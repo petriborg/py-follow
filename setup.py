@@ -31,12 +31,12 @@ except ImportError:
     description = 'Tail (or search) local (or remote) file(s) and colorize ' \
                   'the result.'
 
-osx_requires = [
-    'gnureadline'
-    ]
-requires = []
-if platform.platform().startswith('Darwin'):
-    requires.extend(osx_requires)
+#osx_requires = [
+#    'gnureadline'
+#    ]
+#requires = []
+#if platform.platform().startswith('Darwin'):
+#    requires.extend(osx_requires)
 
 setup(
     name='py-follow',
@@ -46,11 +46,12 @@ setup(
     version=version,
     license='GPL 3.0',
     platforms='any',
-    #packges=[
-    #    ],
-    py_modules=[
-        'follow'
+    packges=[
+        'follow',
         ],
+    #py_modules=[
+    #    'follow'
+    #    ],
     entry_points={
         'console_scripts': [
             'py-follow = follow:main',
@@ -59,7 +60,9 @@ setup(
     cmdclass={
         'test': PyTest,
         },
-    install_requires=requires,
+    install_requires=[
+        'gnureadline;platform_system=="Darwin"',
+    ],
     setup_requires=[],
     tests_require=[
         'pytest'

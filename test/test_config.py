@@ -1,9 +1,14 @@
+"""
+
+"""
+
 import logging
 
 from textwrap import dedent
-from follow import Red, \
-    File, Follow, Match, Highlight, NegativeMatch, Color, \
-    parse_yaml_config, parse_repr_config
+
+from follow.colorize import Match, Highlight, NegativeMatch, Color, Red
+from follow.config import parse_repr_config, parse_yaml_config
+from follow.engine import File, Follow
 
 log = logging.getLogger()
 
@@ -85,4 +90,3 @@ def test_6():
         NegativeMatch('regex'),
         NegativeMatch('regex'),
     ])
-

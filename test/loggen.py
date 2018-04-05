@@ -6,6 +6,7 @@ Generates a pseudo log for testing
 import sys
 import time
 import random
+import argparse
 
 from datetime import datetime
 
@@ -29,10 +30,16 @@ def get_words():
 
 
 def main():
-    use_dt = '--dt' in sys.argv or '--datetime' in sys.argv
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--dt', '--datetime', default=False, action='store_true'
+    )
+    options = parser.parse_args()
+    use_dt = options.dt
+
     dictionary = get_words()
     while True:
-        time.sleep(2)
+        time.sleep(.1)
         line = (' '.join([random.choice(dictionary) for _ in range(5)]))
         if use_dt:
             dt = datetime.now().strftime('%b %d %H:%M:%S')
