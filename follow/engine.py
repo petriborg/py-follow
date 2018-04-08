@@ -58,7 +58,7 @@ class AsyncSearchService(SearchService):
                 try:
                     dt, line = self._queue.get_nowait()
                 except asyncio.QueueEmpty:
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.1, loop=self._loop)
                 else:
                     terminal.emit_line(line)
         except asyncio.CancelledError:
@@ -81,6 +81,7 @@ class AsyncSearchService(SearchService):
             file.shell,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            loop=self._loop,
         )
         return p
 
@@ -107,13 +108,12 @@ class AsyncSearchService(SearchService):
             while process.returncode is None:
                 if self.is_closed:
                     close()
-                    await process.wait()
-                    log.debug('wait process %r exit', process)
                     break
 
                 try:
                     line = await asyncio.wait_for(
-                        process.stdout.readline(), 0.1)
+                        process.stdout.readline(), 0.1,
+                        loop=self._loop)
                     line = _str(line).rstrip()
                 except asyncio.TimeoutError:
                     continue

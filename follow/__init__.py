@@ -67,8 +67,9 @@ def async_main(options):
             cli_future, service_future))
 
         # wait for search processes to exit
-        loop.run_until_complete(asyncio.gather(
-            *asyncio.Task.all_tasks(loop=loop)))
+        pending = asyncio.Task.all_tasks(loop=loop)
+        log.debug('shutting down %d pending', len(pending))
+        loop.run_until_complete(asyncio.gather(*pending))
 
     except asyncio.CancelledError as e:
         log.error('main caught %r', e)

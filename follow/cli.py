@@ -32,26 +32,29 @@ prompt_default = '>>> '
 class Terminal:
     """Virtual terminal"""
     # Some ANSI/VT100 Terminal Control Escape Sequences
-    esc = b'\x1b['
-    clear = esc + b'2J'
-    clear_line = esc + b'2K'
-    save_cursor = esc + b's'
-    unsave_cursor = esc + b'u'
+    # http://www.termsys.demon.co.uk/vtansi.htm
+    esc = '\x1b['
+    erase_line = esc + '2K'
+    erase_down = esc + 'J'
+    erase_up = esc + '1J'
+    erase_screen = esc + '2J'
+    save_cursor = esc + 's'
+    unsave_cursor = esc + 'u'
 
     def __init__(self, stdout=None, stdin=None,
-                 prompt=prompt_default, completekey='tab'):
+                 prompt=prompt_default, complete_key='tab'):
         self.prompt = prompt
         self.stdout = stdout or sys.stdout
         self.stdin = stdin or sys.stdin
-        self.completekey = completekey
+        self.complete_key = complete_key
 
     @property
     def goto_input(self):
         height = shutil.get_terminal_size().lines - 1
-        return self.esc + _bytes('%d;0H' % ((height + 1),))
+        return self.esc + '%d;0H' % ((height + 1),)
 
     def set_scroll(self, n):
-        return self.esc + _bytes('0;%dr' % n)
+        return self.esc + ('0;%dr' % n)
 
     def emit(self, *strings, sep=' ', end='', flush=True):
         """Write string to stdout"""
@@ -157,7 +160,7 @@ class SearchCli(Closable):
         log.debug('cli loop')
         completer = readline.get_completer()
         readline.set_completer(self.complete)
-        readline.parse_and_bind(self.term.completekey + ": complete")
+        readline.parse_and_bind(self.term.complete_key + ": complete")
 
         try:
             while not self.is_closed:
