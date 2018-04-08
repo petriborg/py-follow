@@ -109,7 +109,10 @@ def parse_config_file(config_file, group_names):
                     groups = parse_repr_config(buf_fh)
                 else:
                     groups = parse_yaml_config(buf_fh)
-                return chain(*[groups[z] for z in group_names])
+                missing = [z for z in group_names if z not in groups]
+                log.warning('No matching group name for: %s',
+                            ', '.join(missing))
+                return chain(*[groups.get(z, []) for z in group_names])
         except ImportError:
             log.error('Config file requires yaml module')
         except:
