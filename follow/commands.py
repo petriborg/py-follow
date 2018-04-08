@@ -10,6 +10,9 @@ from itertools import chain
 from follow.util import build_repr, path_re
 
 
+Color = namedtuple('Color', ['long', 'escape', 'short'])
+
+
 def _parse_path(path):
     # log.debug('_parse_path(%r)', path)
     m = path_re.match(path)
@@ -188,9 +191,6 @@ match_commands = dict(
     negativematch=NegativeMatch,
     negative=NegativeMatch,
 )
-
-
-Color = namedtuple('Color', ['long', 'escape', 'short'])
 
 
 class MatchResult:

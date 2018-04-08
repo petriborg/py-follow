@@ -1,5 +1,5 @@
 """
-
+Main search engine.
 """
 
 import abc
@@ -41,9 +41,13 @@ class AsyncSearchService(SearchService):
     https://stackoverflow.com/a/37430948
     """
     def __init__(self, loop=None, queue=None):
-        super().__init__()
         self._queue = queue or asyncio.PriorityQueue()
         self._loop = loop or asyncio.get_event_loop()
+        super().__init__()
+
+        # start files already part of the runtime
+        for file in self.runtime.files:
+            asyncio.ensure_future(self.search(file), loop=self._loop)
 
     def add(self, obj):
         self.runtime.add(obj)
@@ -92,7 +96,6 @@ class AsyncSearchService(SearchService):
         :param file: File object
         """
         log.debug('grep %s', file)
-
         process = await self.open_file(file)
 
         def close():

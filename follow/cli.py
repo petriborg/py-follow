@@ -114,7 +114,7 @@ class SearchCli(Closable):
         for cmd, cls in chain(shell_commands.items(), match_commands.items()):
             do_cmd = partial(self._file_cmd, cmd)
             do_cmd.__doc__ = cls.__doc__
-            log.debug('setattr do_%s = %r', cmd, do_cmd)
+            # log.debug('setattr do_%s = %r', cmd, do_cmd)
             setattr(self, 'do_'+cmd, do_cmd)
 
         # readline completer

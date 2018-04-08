@@ -28,6 +28,10 @@ class ConfigGroup:
         self.requires_match = False  # True if Match object in patterns
         self.add(*args)
 
+    @property
+    def objects(self):
+        return chain(self.patterns, self.colors.values())
+
     def color(self, token):
         reset = self.colors.get('reset')
         if isinstance(token, str):
@@ -41,7 +45,9 @@ class ConfigGroup:
     def add(self, *args):
         """add object to session"""
         for obj in args:
-            if isinstance(obj, Color):
+            if isinstance(obj, ConfigGroup):
+                self.add(*obj.objects)
+            elif isinstance(obj, Color):
                 self.colors[obj.long] = obj
             elif isinstance(obj, Match):
                 if isinstance(obj.color, str):
@@ -64,6 +70,10 @@ class Runtime(ConfigGroup, metaclass=Singleton):
     def __init__(self, *args):
         super().__init__('runtime', *args)
         self.files = []
+
+    @property
+    def objects(self):
+        return chain(self.files, self.patterns, self.colors.values())
 
     def add(self, *args):
         remain = []
@@ -205,7 +215,7 @@ def argv_parse():
     options, ignore = config_parser.parse_known_args()
     log.debug('initial options %r', options)
 
-    cfg_objects = parse_config_file(options.config, options.group_names)
+    cfg_objects = list(parse_config_file(options.config, options.group_names))
     log.debug('config objects %r', cfg_objects)
 
     # add files, patterns, colors, etc from the configuration
@@ -300,6 +310,7 @@ def argv_parse():
     options = parser.parse_args()
     log.debug('final options %r', options)
 
-    # add patterns from arguments
+    # add patterns and files from arguments
     session.add(*options.patterns)
+    session.add(*options.files)
     return options

@@ -53,13 +53,6 @@ def async_main(options):
         service = AsyncSearchService(loop=loop)
         cmdline = SearchCli(search_service=service, terminal=term)
 
-        # create initial application processes
-        for fn in options.files:
-            if options.follow:
-                service.add(Follow(fn, options.lines))
-            else:
-                service.add(File(fn))
-
         # run main application loop
         cli_future = loop.run_in_executor(None, cmdline.loop)
         service_future = asyncio.Task(service.loop(term))
