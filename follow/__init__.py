@@ -10,13 +10,14 @@ Tail (or search) local (or remote) file(s) and colorize the result.
 # https://stackoverflow.com/a/37501797
 # https://stackoverflow.com/a/437088
 
-import sys
+import asyncio
 import logging
+import sys
 
-from .util import coerce_str as _str, syslog_date
+from .cli import Terminal, SearchCli
+from .commands import Highlight, Match, NegativeMatch, Color, File, Follow
 from .config import argv_parse, Runtime
-from .engine import Cli, Follow, File
-from .colorize import colorize, gather, tokens_to_str
+from .engine import AsyncSearchService
 
 __version__ = '0.4.0'
 default_config_file = '~/.py-follow'
@@ -46,127 +47,24 @@ def async_main(options):
     """
     async main creates a global context for execution
     """
-    import signal
-    import asyncio
-
-    from asyncio.queues import PriorityQueue, QueueEmpty
-
-    section = Runtime()
-    queue = PriorityQueue()
     loop = asyncio.get_event_loop()
-
-    def runtime_add(obj):
-        log.debug('adding new runtime: %r', obj)
-        section.add(obj)
-        if isinstance(obj, (File, Follow)):
-            asyncio.ensure_future(search(obj), loop=loop)
-
-    async def search(sfile):
-        """
-        Search 'file' for 'section.patterns', outputting portions of matching 'file'
-        :param sfile: File object
-        """
-        log.debug('grep %r', sfile.path)
-
-        process, close = await open_file(sfile)
-        try:
-            while process.returncode is None:
-                if cli.stop:
-                    close()
-                    await process.wait()
-                    log.debug('wait process %r exit', process)
-                    break
-
-                try:
-                    line = await asyncio.wait_for(
-                        process.stdout.readline(), 0.1)
-                    line = _str(line).rstrip()
-                except asyncio.TimeoutError:
-                    continue
-
-                matches, print_line = gather(
-                    section.patterns, line, section.requires_match)
-                if print_line:
-                    dt = syslog_date(line)
-                    tokens = colorize(matches, line)
-                    color_line = tokens_to_str(section, tokens)
-                    queue.put_nowait((dt, color_line))
-        except asyncio.CancelledError:
-            close()
-        finally:
-            log.debug('finished grep %r', sfile.path)
-
-    async def open_file(ofile):
-        """
-        open tail on 'file'
-        :param ofile:
-        :return: tuple of file handle, and close method
-        """
-        process = await asyncio.create_subprocess_shell(
-            ofile.shell,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            # close_fds=True,
-            # start_new_session=True,  # alternative to preexec_fn
-            # universal_newlines=True,
-        )
-
-        def close():
-            log.debug('close subprocess %r', process)
-            try:
-                if process.returncode is None:
-                    log.debug('terminate %r', process)
-                    process.terminate()
-            except ProcessLookupError:
-                pass
-
-        return process, close
-
-    cli = Cli(runtime_add=runtime_add)
-
-    def sig_exit():
-        cli.stop = True
-        for task in asyncio.Task.all_tasks(loop=loop):
-            log.debug('pending %r', task)
-            task.cancel()
-        log.debug('finished signal exit')
-
-    async def print_queue(cli_instance):
-        try:
-            while not cli_instance.stop:
-                try:
-                    dt, line = queue.get_nowait()
-                except QueueEmpty:
-                    await asyncio.sleep(0.1)
-                else:
-                    cli_instance.emit_line(line)
-        except asyncio.CancelledError:
-            cli_instance.stop = True
-        finally:
-            log.debug('finished print queue')
-
-    def cli_loop():
-        try:
-            cli.cmdloop()
-        finally:
-            log.debug('finished cli loop')
-
     try:
-        # setup signal handler
-        loop.add_signal_handler(signal.SIGINT, sig_exit)
+        term = Terminal()
+        service = AsyncSearchService(loop=loop)
+        cmdline = SearchCli(search_service=service, terminal=term)
 
         # create initial application processes
         for fn in options.files:
             if options.follow:
-                runtime_add(Follow(fn, options.lines))
+                service.add(Follow(fn, options.lines))
             else:
-                runtime_add(File(fn))
+                service.add(File(fn))
 
         # run main application loop
-        cli_future = loop.run_in_executor(None, cli_loop)
-        print_future = asyncio.ensure_future(print_queue(cli))
+        cli_future = loop.run_in_executor(None, cmdline.loop)
+        service_future = asyncio.Task(service.loop(term))
         loop.run_until_complete(asyncio.gather(
-            cli_future, print_future))
+            cli_future, service_future))
 
         # wait for search processes to exit
         loop.run_until_complete(asyncio.gather(
@@ -175,7 +73,7 @@ def async_main(options):
     except asyncio.CancelledError as e:
         log.error('main caught %r', e)
     finally:
-        log.debug('close loop')
+        log.debug('close async loop')
         loop.close()
 
 

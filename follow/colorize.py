@@ -2,64 +2,12 @@
 Matching, colors, terminal string building
 """
 
-import re
 import logging
 
-from collections import namedtuple
-
-from follow.util import build_repr, coerce_str as _str
+from follow.commands import Match, NegativeMatch, Color
+from follow.util import coerce_str as _str
 
 log = logging.getLogger()
-
-
-class MatchResult:
-    """pattern match result for colorized lines"""
-    def __init__(self, match, color):
-        self.start = match.start()
-        self.end = match.end()
-        self.text = match.group()
-        self.color = color
-
-    __repr__ = build_repr('MatchResult', 'start', 'end', 'text')
-
-
-class Highlight:
-    """Highlight matching text only"""
-    def __init__(self, regex, color):
-        if color:
-            assert isinstance(color, (Color, str))
-
-        self._type = self.__class__.__name__
-        self.color = color
-        self.regex = re.compile(regex)
-
-    def finditer(self, line):
-        for m in self.regex.finditer(line):
-            yield MatchResult(m, self.color)
-
-    def __eq__(self, other):
-        return self.color == other.color and \
-            self.regex == other.regex
-
-    __repr__ = build_repr('Highlight', 'color', 'regex')
-
-
-class Match(Highlight):
-    """Match object with color"""
-    def __init__(self, regex, color='plain'):
-        super().__init__(regex=regex, color=color)
-        self._type = self.__class__.__name__
-
-    __repr__ = build_repr('Match', 'color', 'regex')
-
-
-class NegativeMatch(Highlight):
-    """Inverse match object"""
-    def __init__(self, regex):
-        super().__init__(regex=regex, color=None)
-        self._type = self.__class__.__name__
-
-    __repr__ = build_repr('NegativeMatch', 'regex')
 
 
 def build_colors():
@@ -105,7 +53,6 @@ def build_colors():
             for name, code in codes.items()}
 
 
-Color = namedtuple('Color', ['long', 'escape', 'short'])
 color_lookup = build_colors()
 Plain = Color('plain', '', 'e')
 Negative = Color('negative', '', 'v')  # negative match
@@ -125,12 +72,11 @@ def colorize(matches, line):
     """
     matches = sorted(matches, key=lambda m: (m.start, -m.end))
     colorized = []
-    log.debug('matches %r', matches)
+    # log.debug('matches %r', matches)
 
     def inner():
         match = matches.pop(0)
         idx = match.start
-        log.debug('match %r', match)
 
         if matches and matches[0].start <= match.end:
             while matches:
@@ -138,7 +84,6 @@ def colorize(matches, line):
                     colorized.append(
                         (match.color, line[idx:matches[0].start]))
                 idx = inner()
-                log.debug('inner() => %d', idx)
                 if not matches and idx < match.end:
                     colorized.append(
                         (match.color, line[idx:match.end]))
@@ -159,7 +104,7 @@ def colorize(matches, line):
     colorized.append(
         (Plain, line[last_end:]))
 
-    log.debug('colorize() => %r', colorized)
+    # log.debug('colorize() => %r', colorized)
     return colorized
 
 
@@ -175,10 +120,9 @@ def gather(patterns, line, requires_match):
             elif isinstance(pattern, Match):
                 matched = True
             matches.append(match)
-    repr_line = repr(line)
-    trim_line = repr_line[:4] + '...' + repr_line[-4:]
-    log.debug('gather(%d, %s, %s) => %d, %s',
-              len(patterns), trim_line, requires_match, len(matches), matched)
+    # log.debug('gather(%d, %s, %s) => %d, %s',
+    #           len(patterns), trim_repr(line), requires_match,
+    #           len(matches), matched)
     return matches, matched
 
 

@@ -2,18 +2,17 @@
 Configuration file processing, sys.argv processing, and runtime configuration
 """
 
+import argparse
+import logging
 import os
 import re
-import logging
-import argparse
-
-from itertools import chain
 from io import StringIO
+from itertools import chain
 
+from .commands import Color, Highlight, Match, NegativeMatch, \
+    File, Follow, ShellCommand
+from .colorize import Plain, Negative, default_colors
 from .util import expand_path, build_repr, Singleton
-from .colorize import Highlight, Match, NegativeMatch, \
-    Color, Plain, Negative, default_colors
-from .engine import File, Follow
 
 log = logging.getLogger()
 default_config_file = '~/.py-follow'
@@ -21,6 +20,7 @@ default_config_file = '~/.py-follow'
 
 class ConfigGroup:
     """represents current set of patterns"""
+
     def __init__(self, name, *args):
         self.name = name
         self.colors = {}
@@ -60,6 +60,7 @@ class ConfigGroup:
 
 class Runtime(ConfigGroup, metaclass=Singleton):
     """Runtime configuration"""
+
     def __init__(self, *args):
         super().__init__('runtime', *args)
         self.files = []
@@ -67,7 +68,7 @@ class Runtime(ConfigGroup, metaclass=Singleton):
     def add(self, *args):
         remain = []
         for obj in args:
-            if isinstance(obj, (File, Follow)):
+            if isinstance(obj, ShellCommand):
                 log.debug('add file %r', obj)
                 self.files.append(obj)
             else:
@@ -284,17 +285,17 @@ def argv_parse():
     # for colors with shortcuts, create arguments
     for section_color in session.colors.values():
         if len(section_color.short or '') == 1 and \
-           section_color.long not in (Plain.long, Negative.long):
+                section_color.long not in (Plain.long, Negative.long):
             log.debug('add color option %r', section_color)
             meta = 'PTRN'
             name = section_color.long
             parser.add_argument(
-                '-'+section_color.short.lower(),
-                '-'+section_color.short.upper(),
+                '-' + section_color.short.lower(),
+                '-' + section_color.short.upper(),
                 metavar=meta, dest='patterns',
                 action=build_action(section_color),
                 default=[], help='match/highlight %s with %s' % (meta, name),
-                )
+            )
 
     options = parser.parse_args()
     log.debug('final options %r', options)

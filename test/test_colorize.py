@@ -4,8 +4,9 @@ Test colorize
 
 import logging
 
-from follow.colorize import Highlight, gather, colorize, \
+from follow.colorize import gather, colorize, \
     Plain, Red, Blue, Green
+from follow.commands import Highlight
 
 log = logging.getLogger()
 

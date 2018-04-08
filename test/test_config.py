@@ -6,9 +6,10 @@ import logging
 
 from textwrap import dedent
 
-from follow.colorize import Match, Highlight, NegativeMatch, Color, Red
+from follow.colorize import Red
+from follow.commands import \
+    Highlight, Match, NegativeMatch, Color, File, Follow
 from follow.config import parse_repr_config, parse_yaml_config
-from follow.engine import File, Follow
 
 log = logging.getLogger()
 
@@ -35,7 +36,7 @@ def test_7():
     }
     """)) == {
         'syslog': [
-            Follow(path='/foo/bar', number=10),
+            Follow(path='/foo/bar', n=10),
             Match(color='red', regex='baz')
         ]
     }
