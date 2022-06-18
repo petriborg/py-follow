@@ -34,6 +34,7 @@ except ImportError:
 
 test_requires = [
     'pytest > 3.1',
+    'requests',
 ]
 
 setup(

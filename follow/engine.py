@@ -40,19 +40,18 @@ class AsyncSearchService(SearchService):
     """
     https://stackoverflow.com/a/37430948
     """
-    def __init__(self, loop=None, queue=None):
+    def __init__(self, queue=None):
         self._queue = queue or asyncio.PriorityQueue()
-        self._loop = loop or asyncio.get_event_loop()
         super().__init__()
 
         # start files already part of the runtime
         for file in self.runtime.files:
-            asyncio.ensure_future(self.search(file), loop=self._loop)
+            asyncio.ensure_future(self.search(file))
 
     def add(self, obj):
         self.runtime.add(obj)
         if isinstance(obj, ShellCommand):
-            asyncio.ensure_future(self.search(obj), loop=self._loop)
+            asyncio.ensure_future(self.search(obj))
 
     async def loop(self, terminal):
         """pulls from the print queue and writes to terminal"""
@@ -62,7 +61,7 @@ class AsyncSearchService(SearchService):
                 try:
                     dt, line = self._queue.get_nowait()
                 except asyncio.QueueEmpty:
-                    await asyncio.sleep(0.1, loop=self._loop)
+                    await asyncio.sleep(0.1)
                 else:
                     terminal.emit_line(line)
         except asyncio.CancelledError:
@@ -85,7 +84,6 @@ class AsyncSearchService(SearchService):
             file.shell,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            loop=self._loop,
         )
         return p
 
@@ -115,8 +113,8 @@ class AsyncSearchService(SearchService):
 
                 try:
                     line = await asyncio.wait_for(
-                        process.stdout.readline(), 0.1,
-                        loop=self._loop)
+                        process.stdout.readline(),
+                        0.1)
                     line = _str(line).rstrip()
                 except asyncio.TimeoutError:
                     continue

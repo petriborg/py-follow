@@ -79,6 +79,7 @@ class Runtime(ConfigGroup, metaclass=Singleton):
     def add(self, *args):
         remain = []
         for obj in args:
+            log.debug('runtime process %r', obj)
             if isinstance(obj, ShellCommand):
                 log.debug('add file %r', obj)
                 self.files.append(obj)
@@ -318,5 +319,6 @@ def argv_parse():
 
     # add patterns and files from arguments
     session.add(*options.patterns)
-    session.add(*options.files)
+    session.add(*[Follow(f) if options.follow else File(f)
+                  for f in options.files])
     return options

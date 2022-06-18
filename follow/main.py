@@ -33,7 +33,7 @@ def async_main(options):
     loop = asyncio.get_event_loop()
     try:
         term = Terminal()
-        service = AsyncSearchService(loop=loop)
+        service = AsyncSearchService()
         cmdline = SearchCli(search_service=service, terminal=term)
 
         # run main application loop
@@ -43,7 +43,7 @@ def async_main(options):
             cli_future, service_future))
 
         # wait for search processes to exit
-        pending = asyncio.Task.all_tasks(loop=loop)
+        pending = asyncio.all_tasks(loop=loop)
         log.debug('shutting down %d pending', len(pending))
         loop.run_until_complete(asyncio.gather(*pending))
 
@@ -51,10 +51,12 @@ def async_main(options):
         log.error('main caught %r', e)
     finally:
         log.debug('close async loop')
-        loop.close()
+        if not loop.is_closed():
+            loop.close()
 
 
 def main():
+    setup_logging('--debug' in sys.argv)
     options = argv_parse()
     setup_logging(options.debug)
     async_main(options)

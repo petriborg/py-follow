@@ -1,14 +1,16 @@
-#!/usr/bin/env python -u
+#!/usr/bin/env python3
 """
 Generates a pseudo log for testing
 """
 
-import sys
 import time
 import random
+import logging
 import argparse
 
 from datetime import datetime
+
+log = logging.getLogger()
 
 
 def get_words():
@@ -19,14 +21,19 @@ def get_words():
     except IOError:
         pass
 
-    word_site = "http://svnweb.freebsd.org/csrg/share/dict/words?view=co&content-type=text/plain"
+    word_site = ("https://svnweb.freebsd.org/csrg/share/dict/words"
+                 "?view=co&content-type=text/plain")
+    import requests
     try:
-        from urllib.request import urlopen
-    except ImportError:
-        from urllib2 import urlopen  # pylint:
-    response = urlopen(word_site)
-    txt = response.read()
-    return txt.splitlines()
+        rsp = requests.get(word_site, headers={'user-agent': 'curl/7'})
+        if rsp.ok:
+            return rsp.content.decode().splitlines()
+        else:
+            log.error('HTTP request failed: %s', rsp.reason)
+    except Exception as e:
+        log.error('HTTP request error: %s', e)
+
+    return []
 
 
 def main():
@@ -39,12 +46,12 @@ def main():
 
     dictionary = get_words()
     while True:
-        time.sleep(.1)
+        time.sleep(.3)
         line = (' '.join([random.choice(dictionary) for _ in range(5)]))
         if use_dt:
             dt = datetime.now().strftime('%b %d %H:%M:%S')
             line = dt + ' ' + line
-        print(line)
+        print(line, flush=True)
 
 
 if __name__ == '__main__':
