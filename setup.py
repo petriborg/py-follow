@@ -38,6 +38,10 @@ except ImportError:
 #if platform.platform().startswith('Darwin'):
 #    requires.extend(osx_requires)
 
+test_requires = [
+    'pytest',
+]
+
 setup(
     name='py-follow',
     author='Peter Cooner',
@@ -63,10 +67,11 @@ setup(
     install_requires=[
         'gnureadline;platform_system=="Darwin"',
     ],
+    extra_require={
+        'test': test_requires
+    },
     setup_requires=[],
-    tests_require=[
-        'pytest'
-        ],
+    tests_require=test_requires,
     )
 
 
