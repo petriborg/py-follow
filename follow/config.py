@@ -9,8 +9,9 @@ import re
 from io import StringIO
 from itertools import chain
 
-from .commands import Color, Highlight, Match, NegativeMatch, \
-    File, Follow, ShellCommand
+from .commands import (
+    Color, Highlight, Match, NegativeMatch, File, Follow, ShellCommand
+)
 from .colorize import Plain, Negative, default_colors
 from .util import expand_path, build_repr, Singleton
 
@@ -115,7 +116,7 @@ def parse_config_file(config_file, group_names):
                 return chain(*[groups.get(z, []) for z in group_names])
         except ImportError:
             log.error('Config file requires yaml module')
-        except:
+        except Exception:
             log.critical('Parse yaml config', exc_info=True)
     return []
 
@@ -168,14 +169,14 @@ def parse_yaml_config(stream):
     yaml.add_constructor('!nmatch', build_ctor(NegativeMatch))
     yaml.add_constructor('!negative-match', build_ctor(NegativeMatch))
 
-    data = yaml.load(stream)
+    data = yaml.load(stream, yaml.Loader)
     log.debug('parse_config(stream) => %r', data)
     return data
 
 
 def argv_parse():
     def _get_action_name(argument):
-        """Work around for http://bugs.python.org/issue11874"""
+        """Work around for https://bugs.python.org/issue11874"""
         from argparse import SUPPRESS
         if argument is None:
             return None
@@ -197,7 +198,7 @@ def argv_parse():
             setattr(namespace, self.dest, expand_path(values))
 
     class HostHelpFormatter(argparse.HelpFormatter):
-        """Work around for http://bugs.python.org/issue11874"""
+        """Work around for https://bugs.python.org/issue11874"""
 
         def _format_usage(self, usage, actions, groups, prefix):
             result = super()._format_usage(usage, actions, groups, prefix)
@@ -221,15 +222,17 @@ def argv_parse():
     cfg_objects = list(parse_config_file(options.config, options.group_names))
     log.debug('config objects %r', cfg_objects)
 
-    # add files, patterns, colors, etc from the configuration
+    # add files, patterns, colors, etc. from the configuration
     session = Runtime(*default_colors)
     session.add(*cfg_objects)
 
     # import the parent follow package high level description and version
     from . import __doc__ as desc
     from . import __version__ as version
+    from . import __application__ as app_name
 
     parser = argparse.ArgumentParser(
+        prog=app_name,
         description=desc,
         formatter_class=HostHelpFormatter,
     )

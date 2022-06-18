@@ -47,3 +47,8 @@ group-name:
     ]
 }
 ```
+
+## Setup development environment
+```commandline
+$ ./setup.sh
+```

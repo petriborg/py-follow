@@ -4,8 +4,8 @@ Matching, colors, terminal string building
 
 import logging
 
-from follow.commands import Match, NegativeMatch, Color
-from follow.util import coerce_str as _str
+from .commands import Match, NegativeMatch, Color
+from .util import coerce_str as _str
 
 log = logging.getLogger()
 

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from typing import Union, List
 from itertools import chain
 
-from follow.util import build_repr, path_re
+from .util import build_repr, path_re
 
 
 Color = namedtuple('Color', ['long', 'escape', 'short'])
@@ -27,7 +27,7 @@ def _parse_path(path):
 
 
 def _build_tail_cmd(host, user, path, number=None, follow=True):
-    """generate shell command"""
+    """generate shell script command"""
 
     follow_opt = '-F' if follow else ''
     follow_cmd = '{follow} {follow_opt} -n {number} {path} 2>&1'.format(

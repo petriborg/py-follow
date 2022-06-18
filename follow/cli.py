@@ -9,8 +9,11 @@ from itertools import chain
 from functools import partial
 
 from .commands import shell_commands, match_commands
-from .util import Closable, term_help, \
-    coerce_bytes as _bytes, coerce_str as _str
+from .util import (
+    Closable, term_help,
+    # coerce_bytes as _bytes,
+    coerce_str as _str,
+)
 
 log = logging.getLogger()
 
@@ -173,7 +176,7 @@ class SearchCli(Closable):
                     if self.onecmd(line):
                         self.close()
                         self.service.close()
-        except:
+        except Exception:
             log.exception('cli loop error')
         finally:
             readline.set_completer(completer)

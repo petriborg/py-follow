@@ -1,20 +1,19 @@
 import os
 import sys
-import platform
 from setuptools import setup
-from setuptools.command.test import test as TestCommand
+from setuptools.command.test import test
 
 
-class PyTest(TestCommand):
+class PyTest(test):
+    pytest_args = ''
     user_options = [('pytest-args=', 'a', "Arguments to pass to pytest")]
 
     def initialize_options(self):
-        TestCommand.initialize_options(self)
-        self.pytest_args = []
+        test.initialize_options(self)
+        self.pytest_args = ''
 
     def run_tests(self):
         import shlex
-        # import here, cause outside the eggs aren't loaded
         import pytest
         errno = pytest.main(shlex.split(self.pytest_args))
         sys.exit(errno)
@@ -24,22 +23,17 @@ try:
     src_dir = os.path.realpath(os.path.join(__file__, '..'))
     sys.path.append(src_dir)
     import follow
+
     version = follow.__version__
     description = follow.__doc__
 except ImportError:
+    follow = None
     version = '0.0.0'
     description = 'Tail (or search) local (or remote) file(s) and colorize ' \
                   'the result.'
 
-#osx_requires = [
-#    'gnureadline'
-#    ]
-#requires = []
-#if platform.platform().startswith('Darwin'):
-#    requires.extend(osx_requires)
-
 test_requires = [
-    'pytest',
+    'pytest > 3.1',
 ]
 
 setup(
@@ -50,28 +44,23 @@ setup(
     version=version,
     license='GPL 3.0',
     platforms='any',
-    packges=[
+    packages=[
         'follow',
-        ],
-    #py_modules=[
-    #    'follow'
-    #    ],
+    ],
     entry_points={
         'console_scripts': [
-            'py-follow = follow:main',
-            ]
-        },
+            'py-follow = follow.main:main',
+        ]
+    },
     cmdclass={
         'test': PyTest,
-        },
+    },
     install_requires=[
         'gnureadline;platform_system=="Darwin"',
     ],
-    extra_require={
+    extras_require={
         'test': test_requires
     },
     setup_requires=[],
     tests_require=test_requires,
-    )
-
-
+)
