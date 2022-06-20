@@ -3,7 +3,7 @@
 #
 
 realpath() {
-    perl -MCwd -e 'print Cwd::realpath($ARGV[0]),qq<\n>' $1
+    perl -MCwd -e 'print Cwd::realpath($ARGV[0]),qq<\n>' "$1"
 }
 
 root=${0%/*}

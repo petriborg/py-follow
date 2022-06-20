@@ -6,7 +6,6 @@ from .cli import Terminal, SearchCli
 from .engine import AsyncSearchService
 from .config import argv_parse
 
-
 log = logging.getLogger()
 
 

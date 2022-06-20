@@ -72,6 +72,7 @@ def colorize(matches, line):
     """
     matches = sorted(matches, key=lambda m: (m.start, -m.end))
     colorized = []
+
     # log.debug('matches %r', matches)
 
     def inner():

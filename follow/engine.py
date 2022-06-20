@@ -40,6 +40,7 @@ class AsyncSearchService(SearchService):
     """
     https://stackoverflow.com/a/37430948
     """
+
     def __init__(self, queue=None):
         self._queue = queue or asyncio.PriorityQueue()
         super().__init__()

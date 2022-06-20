@@ -1,5 +1,5 @@
 """
-
+Different command objects which pull data or operate on the data
 """
 import re
 from collections import namedtuple
@@ -8,7 +8,6 @@ from typing import Union, List
 from itertools import chain
 
 from .util import build_repr, path_re
-
 
 Color = namedtuple('Color', ['long', 'escape', 'short'])
 
