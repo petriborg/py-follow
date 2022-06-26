@@ -17,7 +17,7 @@ def test_parse_path(path, expected):
 
 
 @pytest.mark.parametrize('path,follow,expected', [
-    ('foo@bar:baz', True, 'ssh -l bar foo "$(command -v gtail || command -v '
+    ('foo@bar:baz', True, 'ssh -l foo bar "$(command -v gtail || command -v '
                           'tail) -F -n 10 baz 2>&1"'),
     ('baz', True, '$(command -v gtail || command -v tail) -F -n 10 baz 2>&1'),
 ])

@@ -1,22 +1,17 @@
-"""
-
-"""
-
 import logging
 
 from textwrap import dedent
 
 from follow.colorize import Red
-from follow.commands import \
+from follow.commands import (
     Highlight, Match, NegativeMatch, Color, File, Follow
+)
 from follow.config import parse_repr_config, parse_yaml_config
 
 log = logging.getLogger()
 
 
 def test_8():
-    log.debug('test_8')
-
     # test to make sure classes equality work right
     assert Follow('foo') == Follow('foo')
     assert Match('rez', 'red') == Match('rez', 'red')
@@ -25,7 +20,6 @@ def test_8():
 
 
 def test_7():
-    log.debug('test_7')
     # test repr config file
     assert parse_repr_config(dedent("""
     {
@@ -43,9 +37,7 @@ def test_7():
 
 
 def test_6():
-    log.debug('test_6')
     # test yaml config file
-
     assert parse_yaml_config(dedent("""
     - test
     - basic

@@ -1,7 +1,3 @@
-import pytest
-
-from textwrap import dedent
-
 from follow.util import column_formatter, term_help
 
 
