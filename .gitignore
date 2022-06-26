@@ -46,6 +46,8 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest*
+.loggen_words_dict
+.loggen_output
 
 # Translations
 *.mo
