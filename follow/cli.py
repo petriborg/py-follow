@@ -97,7 +97,7 @@ class SearchCli(Closable):
     @staticmethod
     def do_quit(_):
         """Exit application."""
-        return True
+        raise SystemExit
 
     def do_help(self, _):
         """Shows this help message."""
@@ -140,6 +140,7 @@ class SearchCli(Closable):
 
     @staticmethod
     def parse(line):
+        """split line into cmd, args, original"""
         line = line.strip()
         if not line:
             return None, None, line
@@ -149,16 +150,18 @@ class SearchCli(Closable):
         return args[0], args[1:], line
 
     def onecmd(self, line):
+        """execute one command"""
         cmd, args, line = self.parse(line)
         if not cmd:
             return
         method = getattr(self, 'do_' + cmd, None)
         if method is None:
-            self.term.emit('Unknown command: ', line)
+            self.term.emit('Unknown command: ', line, end='\n')
         else:
             return method(args)
 
     def loop(self):
+        """input loop"""
         log.debug('cli loop')
         completer = readline.get_completer()
         readline.set_completer(self.complete)
@@ -172,9 +175,10 @@ class SearchCli(Closable):
                     self.close()
                     self.service.close()
                 else:
-                    if self.onecmd(line):
-                        self.close()
-                        self.service.close()
+                    self.onecmd(line)
+        except SystemExit:
+            self.close()
+            self.service.close()
         except Exception:
             log.exception('cli loop error')
         finally:
@@ -183,7 +187,6 @@ class SearchCli(Closable):
 
     def complete(self, prefix, index):
         """readline complete method"""
-
         if prefix != self._prefix:
             # build list of possible matches to text
             self._prefix = prefix

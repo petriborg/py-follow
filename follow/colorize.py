@@ -3,9 +3,12 @@ Matching, colors, terminal string building
 """
 
 import logging
+from typing import List, Tuple
 
-from .commands import Match, NegativeMatch, Color
-from .util import coerce_str as _str
+from .commands import Match, NegativeMatch, Color, MatchResult, AltReMatch
+from .util import (
+    coerce_str as _str,
+)
 
 log = logging.getLogger()
 
@@ -65,47 +68,47 @@ default_colors = [Plain, Negative] + list(color_lookup.values())
 
 def colorize(matches, line):
     """
-    Colorize lines based on matches
+    Colorize lines based on matches.
+    Covers -
+    * matches next to each other
+    * matches that completely overlap other matches
+    * matches that overlap only the tail of the previous match
     :param matches: MatchResult iter
     :param line: text
     :return: color line
     """
-    matches = sorted(matches, key=lambda m: (m.start, -m.end))
-    colorized = []
+    m = AltReMatch(0, len(line), line)
+    matches = [MatchResult(m, Plain)] + sorted(matches, key=lambda m: (m.start, -m.end))
+    colorized = []  # type: List[Tuple[Color, str]]
 
-    # log.debug('matches %r', matches)
+    def color_first():
+        current = matches.pop(0)
 
-    def inner():
-        match = matches.pop(0)
-        idx = match.start
+        def color_text(start, end):
+            nonlocal current
+            if end == start:
+                return  # skip over empty str
+            colorized.append((current.color, line[start:end]))
 
-        if matches and matches[0].start <= match.end:
-            while matches:
-                if idx < matches[0].start:
-                    colorized.append(
-                        (match.color, line[idx:matches[0].start]))
-                idx = inner()
-                if not matches and idx < match.end:
-                    colorized.append(
-                        (match.color, line[idx:match.end]))
-                    idx = match.end
+        if matches and current.end > matches[0].start:  # next overlaps current
+            if matches and current.end < matches[0].end:  # next overlaps tail of current
+                color_text(current.start, matches[0].start)
+                idx = color_first()
+            else:  # next overlap is encompassed by current
+                idx = current.start
+                while matches and matches[0].start < current.end:  # next still overlaps
+                    color_text(idx, matches[0].start)
+                    idx = color_first()
+                if current.end > idx:  # last overlap remainder
+                    color_text(idx, current.end)
+                    idx = current.end
             return idx
+        else:  # no overlap
+            color_text(current.start, current.end)
+            return current.end
 
-        else:
-            colorized.append(
-                (match.color, line[match.start:match.end]))
-            return match.end
-
-    last_end = 0
-    while matches:
-        if matches[0].start > 0:
-            colorized.append(
-                (Plain, line[last_end:matches[0].start]))
-        last_end = inner()
-    colorized.append(
-        (Plain, line[last_end:]))
-
-    # log.debug('colorize() => %r', colorized)
+    # recursively process matches
+    color_first()
     return colorized
 
 

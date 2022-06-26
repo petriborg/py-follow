@@ -12,8 +12,8 @@ from .util import build_repr, path_re
 Color = namedtuple('Color', ['long', 'escape', 'short'])
 
 
-def _parse_path(path):
-    # log.debug('_parse_path(%r)', path)
+def _parse_path(path: str):
+    """parse path input, returning tuple(user, host, path)"""
     m = path_re.match(path)
     if not m:
         raise ValueError('Invalid path %r' % path)
@@ -25,8 +25,9 @@ def _parse_path(path):
     return user, host, path
 
 
-def _build_tail_cmd(host, user, path, number=None, follow=True):
+def _build_tail_cmd(user, host, path, number=None, follow=True):
     """generate shell script command"""
+    print((user, host, path))
 
     follow_opt = '-F' if follow else ''
     follow_cmd = '{follow} {follow_opt} -n {number} {path} 2>&1'.format(
@@ -74,6 +75,8 @@ class ShellCommand(SimpleNamespace):
 
     @property
     def local(self):
+        # TODO handle aliases
+        # ex: $(command -v gtail || command -v tail) etc
         return ' '.join(chain([self.exec], self.args))
 
     @property
@@ -130,7 +133,7 @@ class Follow(Tail):
 
 
 class Highlight:
-    """Highlight matching text only."""
+    """Highlight matching text only - highlight <regex> <color>"""
 
     def __init__(self, regex, color):
         if color:
@@ -160,7 +163,7 @@ class Highlight:
 
 
 class Match(Highlight):
-    """Match line and highlight with color."""
+    """Match line and highlight with color - match <regex> [color]"""
 
     def __init__(self, regex, color='plain'):
         super().__init__(regex=regex, color=color)
@@ -169,7 +172,7 @@ class Match(Highlight):
 
 
 class NegativeMatch(Highlight):
-    """Inverse match line."""
+    """Inverse match line - negative <regex> <color>"""
 
     def __init__(self, regex):
         super().__init__(regex=regex, color=None)
@@ -190,6 +193,23 @@ match_commands = dict(
     negativematch=NegativeMatch,
     negative=NegativeMatch,
 )
+
+
+class AltReMatch:
+    """re.Match alternative (hack)"""
+    def __init__(self, pos, endpos, string):
+        self.pos = pos
+        self.endpos = endpos
+        self.string = string
+
+    def start(self):
+        return self.pos
+
+    def end(self):
+        return self.endpos
+
+    def group(self):
+        return self.string
 
 
 class MatchResult:

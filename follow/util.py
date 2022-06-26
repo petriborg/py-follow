@@ -21,6 +21,7 @@ def isdigit(s):
 
 
 def ispath(s):
+    """matches user@host:/path"""
     return path_re.match(s)
 
 
@@ -117,7 +118,7 @@ def column_formatter(format_str, widths, *columns):
 
     NOTE: each str.format() result needs rstrip() to avoid right-side padding
     """
-    log.error('column_formatter(%r, %r, *%r)', format_str, widths, columns)
+    log.debug('column_formatter(%r, %r, *%r)', format_str, widths, columns)
     result = []
     for row in zip(*columns):
         lines = [wrap(elt, width=num) for elt, num in zip(row, widths)]

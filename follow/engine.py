@@ -68,7 +68,7 @@ class AsyncSearchService(SearchService):
         except asyncio.CancelledError:
             log.error('search loop cancelled')
             self.close()
-        except:
+        except Exception:
             log.exception('search loop error')
             self.close()
         finally:
