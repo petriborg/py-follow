@@ -79,9 +79,7 @@ class Runtime(ConfigGroup, metaclass=Singleton):
     def add(self, *args):
         remain = []
         for obj in args:
-            log.debug('runtime process %r', obj)
             if isinstance(obj, ShellCommand):
-                log.debug('add file %r', obj)
                 self.files.append(obj)
             else:
                 remain.append(obj)

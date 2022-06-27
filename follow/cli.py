@@ -1,14 +1,17 @@
 """
 Command line interface
 """
+import asyncio
 import shutil
 import sys
 import logging
 
+from typing import List, Tuple, Optional
+from asyncio import AbstractEventLoop
 from itertools import chain
-from functools import partial
 
 from .commands import shell_commands, match_commands
+from .engine import SearchService
 from .util import (
     Closable, term_help,
     # coerce_bytes as _bytes,
@@ -73,19 +76,10 @@ class Terminal:
         self.emit(self.prompt, buf)
 
 
-def _build_do_cmd(name, doc=''):
-    def do_cmd(self, args):
-        self._file_cmd(name, args)
-
-    do_cmd.__name__ = 'do_' + name
-    do_cmd.__doc__ = doc
-    return do_cmd
-
-
 class SearchCli(Closable):
-    """Search command line terminal"""
+    """Search command line interface for the terminal"""
 
-    def do_list(self, args):
+    def do_list(self, *args):
         """List current set of files, colors, and/or matches."""
         if not args:  # output all case
             args = ['files', 'patterns']
@@ -95,74 +89,63 @@ class SearchCli(Closable):
         self.term.emit('\n'.join(lines), end='\n')
 
     @staticmethod
-    def do_quit(_):
+    def do_quit(*args):
         """Exit application."""
         raise SystemExit
 
-    def do_help(self, _):
+    def do_help(self, *_):
         """Shows this help message."""
-        cmd_name = ['Commands:'] + self._do_commands
-        cmd_docs = [''] + [getattr(self, 'do_' + cmd).__doc__ or ''
-                           for cmd in self._do_commands]
+        cmd_name = ['Commands:'] + list(self._commands)
+        cmd_docs = [''] + [m.__doc__ for m in self._commands.values()]
         text = term_help(cmd_name, cmd_docs)
         self.term.emit(text, end='\n')
 
-    def __init__(self, search_service, terminal=None):
+    def __init__(
+            self, search_service: SearchService, terminal: Terminal = None,
+            loop: AbstractEventLoop = None
+    ):
         super().__init__()
-        self.service = search_service
-        self.term = terminal or Terminal()
-
-        # build do_<cmd> list
-        for cmd, cls in chain(shell_commands.items(), match_commands.items()):
-            do_cmd = partial(self._file_cmd, cmd)
-            do_cmd.__doc__ = cls.__doc__
-            # log.debug('setattr do_%s = %r', cmd, do_cmd)
-            setattr(self, 'do_' + cmd, do_cmd)
+        self.service = search_service  # search engine
+        self.term = terminal or Terminal()  # virtual terminal
+        self._loop = loop or asyncio.get_event_loop()
 
         # readline completer
         self._prefix = None
         self._possible = []
-        self._do_commands = \
-            sorted([c[3:] for c in dir(self) if c.startswith('do_')])
-
-    def _file_cmd(self, name, args):
-        try:
-            if name in shell_commands:
-                command = shell_commands[name]
-                self.service.add(command(*args))
-            elif name in match_commands:
-                match = match_commands[name]
-                self.service.add(match(*args))
-            else:
-                log.error('unknown error - %s %s', name, args)
-        except ValueError as e:
-            log.exception('%s error - %s', name, e)
+        self._commands = {
+            'quit': self.do_quit,
+            'help': self.do_help,
+            'list': self.do_list,
+            **shell_commands,
+            **match_commands,
+        }
 
     @staticmethod
-    def parse(line):
+    def parse(line: str) -> Tuple[Optional[str], List[str], str]:
         """split line into cmd, args, original"""
         line = line.strip()
         if not line:
-            return None, None, line
+            return None, [], line
         if line[0] == '?':
             line = 'help ' + line[1:]
         args = line.split()
         return args[0], args[1:], line
 
-    def onecmd(self, line):
-        """execute one command"""
-        cmd, args, line = self.parse(line)
-        if not cmd:
+    def onecmd(self, line: str):
+        """execute one do_<name> command"""
+        cmd_name, args, line = self.parse(line)
+        if not cmd_name:
             return
-        method = getattr(self, 'do_' + cmd, None)
-        if method is None:
-            self.term.emit('Unknown command: ', line, end='\n')
+        method = self._commands.get(cmd_name)
+        if method is not None:
+            obj = method(*args)
+            if obj:
+                self.service.add(obj)
         else:
-            return method(args)
+            self.term.emit('Unknown command: ', line, end='\n')
 
     def loop(self):
-        """input loop"""
-        log.debug('cli loop')
+        """terminal input loop"""
         completer = readline.get_completer()
         readline.set_completer(self.complete)
         readline.parse_and_bind(self.term.complete_key + ": complete")
@@ -175,10 +158,10 @@ class SearchCli(Closable):
                     self.close()
                     self.service.close()
                 else:
-                    self.onecmd(line)
+                    self.onecmd(_str(line))
         except SystemExit:
-            self.close()
             self.service.close()
+            self.close()
         except Exception:
             log.exception('cli loop error')
         finally:
@@ -190,8 +173,7 @@ class SearchCli(Closable):
         if prefix != self._prefix:
             # build list of possible matches to text
             self._prefix = prefix
-            self._possible = \
-                [n for n in self._do_commands if n.startswith(prefix)]
+            self._possible = [n for n in self._commands if n.startswith(prefix)]
         result = None
         try:
             result = self._possible[index]

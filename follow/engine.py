@@ -5,6 +5,7 @@ Main search engine.
 import abc
 import asyncio
 import logging
+from asyncio import AbstractEventLoop, PriorityQueue
 
 from .commands import ShellCommand
 from .util import Closable, syslog_date, coerce_str as _str
@@ -41,18 +42,23 @@ class AsyncSearchService(SearchService):
     https://stackoverflow.com/a/37430948
     """
 
-    def __init__(self, queue=None):
+    def __init__(
+            self,
+            queue: PriorityQueue = None,
+            loop: AbstractEventLoop = None
+    ):
+        self._loop = loop or asyncio.get_event_loop()
         self._queue = queue or asyncio.PriorityQueue()
         super().__init__()
 
         # start files already part of the runtime
         for file in self.runtime.files:
-            asyncio.ensure_future(self.search(file))
+            asyncio.ensure_future(self.search(file), loop=self._loop)
 
     def add(self, obj):
         self.runtime.add(obj)
         if isinstance(obj, ShellCommand):
-            asyncio.ensure_future(self.search(obj))
+            asyncio.ensure_future(self.search(obj), loop=self._loop)
 
     async def loop(self, terminal):
         """pulls from the print queue and writes to terminal"""
@@ -90,9 +96,8 @@ class AsyncSearchService(SearchService):
 
     async def search(self, file):
         """
-        Search 'file' for 'section.patterns', outputting portions of
-        matching 'file'
-        :param file: File object
+        Search 'file' for 'section.patterns', queueing colorized output
+        for display.
         """
         log.debug('grep %s', file)
         process = await self.open_file(file)
@@ -101,12 +106,14 @@ class AsyncSearchService(SearchService):
             log.debug('close subprocess %r', process)
             try:
                 if process.returncode is None:
-                    log.debug('terminate %r', process)
+                    log.info('terminate %r', process)
                     process.terminate()
             except ProcessLookupError:
-                pass
+                pass  # ignore kill failures
 
         try:
+            # while process is alive, search output for matches
+            # queue resulting matches for display
             while process.returncode is None:
                 if self.is_closed:
                     close()

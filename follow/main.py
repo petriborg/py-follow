@@ -29,11 +29,12 @@ def async_main(options):
     """
     async main creates a global context for execution
     """
-    loop = asyncio.get_event_loop()
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.get_event_loop()
     try:
         term = Terminal()
-        service = AsyncSearchService()
-        cmdline = SearchCli(search_service=service, terminal=term)
+        service = AsyncSearchService(loop=loop)
+        cmdline = SearchCli(search_service=service, terminal=term, loop=loop)
 
         # run main application loop
         cli_future = loop.run_in_executor(None, cmdline.loop)
