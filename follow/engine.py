@@ -71,12 +71,9 @@ class AsyncSearchService(SearchService):
                     await asyncio.sleep(0.1)
                 else:
                     terminal.emit_line(line)
-        except asyncio.CancelledError:
-            log.error('search loop cancelled')
-            self.close()
         except Exception:
-            log.exception('search loop error')
             self.close()
+            raise
         finally:
             log.debug('finished search loop -> closed: %s', self.is_closed)
 
@@ -86,12 +83,13 @@ class AsyncSearchService(SearchService):
         :param file:
         :return: subprocess
         """
-        log.debug('open %s', file.shell)
         p = await asyncio.create_subprocess_shell(
             file.shell,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+            #loop=self._loop,
         )
+        log.debug('open_file(%s) => %r', file.shell, p)
         return p
 
     async def search(self, file):
@@ -99,15 +97,18 @@ class AsyncSearchService(SearchService):
         Search 'file' for 'section.patterns', queueing colorized output
         for display.
         """
-        log.debug('grep %s', file)
         process = await self.open_file(file)
+        log.debug('search %r', process)
 
         def close():
+            nonlocal process
             log.debug('close subprocess %r', process)
             try:
                 if process.returncode is None:
                     log.info('terminate %r', process)
                     process.terminate()
+                else:
+                    log.info('%r already terminated', process)
             except ProcessLookupError:
                 pass  # ignore kill failures
 
@@ -121,8 +122,7 @@ class AsyncSearchService(SearchService):
 
                 try:
                     line = await asyncio.wait_for(
-                        process.stdout.readline(),
-                        0.1)
+                        process.stdout.readline(), 0.1)
                     line = _str(line).rstrip()
                 except asyncio.TimeoutError:
                     continue
@@ -134,9 +134,6 @@ class AsyncSearchService(SearchService):
                     tokens = colorize(matches, line)
                     color_line = tokens_to_str(self.runtime, tokens)
                     self._queue.put_nowait((dt, color_line))
-        except asyncio.CancelledError:
-            self.close()
-            close()
         except:
             log.exception('line search error')
             self.close()

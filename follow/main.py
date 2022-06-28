@@ -2,9 +2,13 @@ import asyncio
 import logging
 import sys
 
-from .cli import Terminal, SearchCli
-from .engine import AsyncSearchService
-from .config import argv_parse
+from asyncio import (
+    AbstractEventLoop,
+)
+from asyncio.unix_events import (
+    DefaultEventLoopPolicy,
+)
+
 
 log = logging.getLogger()
 
@@ -25,12 +29,46 @@ def setup_logging(is_debug):
     )
 
 
-def async_main(options):
+class LoopPolicy(DefaultEventLoopPolicy):
+    def __init__(self):
+        super().__init__()
+
+    def new_event_loop(self) -> AbstractEventLoop:
+        loop = super().new_event_loop()  # type: AbstractEventLoop
+        loop.set_exception_handler(handler=exception_handler)
+        return loop
+
+    def get_event_loop(self) -> AbstractEventLoop:
+        loop = super().get_event_loop()
+        loop.set_exception_handler(handler=exception_handler)
+        return loop
+
+
+def exception_handler(loop, ctx):
+    """
+    context is a dict object containing the following keys (new keys may be
+            introduced in future Python versions):
+    'message': Error message;
+    'exception' (optional): Exception object;
+    'future'    (optional): asyncio.Future instance;
+    'task'      (optional): asyncio.Task instance;
+    'handle'    (optional): asyncio.Handle instance;
+    'protocol'  (optional): Protocol instance;
+    'transport' (optional): Transport instance;
+    'socket'    (optional): socket.socket instance;
+    'asyncgen'  (optional): Asynchronous generator that caused the exception.
+    """
+    log.error('Unhandled exception: ' + ctx['message'])
+
+
+async def async_main(options):
     """
     async main creates a global context for execution
     """
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.get_event_loop()
+    from .cli import Terminal, SearchCli
+    from .engine import AsyncSearchService
+
+    loop = asyncio.get_event_loop()
     try:
         term = Terminal()
         service = AsyncSearchService(loop=loop)
@@ -38,25 +76,23 @@ def async_main(options):
 
         # run main application loop
         cli_future = loop.run_in_executor(None, cmdline.loop)
-        service_future = asyncio.Task(service.loop(term))
-        loop.run_until_complete(asyncio.gather(
-            cli_future, service_future))
+        await asyncio.gather(cli_future, service.loop(term))
 
-        # wait for search processes to exit
-        pending = asyncio.all_tasks(loop=loop)
-        log.debug('shutting down %d pending', len(pending))
-        loop.run_until_complete(asyncio.gather(*pending))
-
-    except asyncio.CancelledError as e:
-        log.error('main caught %r', e)
     finally:
         log.debug('close async loop')
-        if not loop.is_closed():
-            loop.close()
 
 
 def main():
     setup_logging('--debug' in sys.argv)
+
+    policy = LoopPolicy()
+    asyncio.set_event_loop_policy(policy=policy)
+    loop = policy.get_event_loop()
+
+    from .config import argv_parse
     options = argv_parse()
     setup_logging(options.debug)
-    async_main(options)
+    try:
+        loop.run_until_complete(async_main(options))
+    except KeyboardInterrupt:
+        pass

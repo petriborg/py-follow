@@ -159,7 +159,7 @@ class SearchCli(Closable):
                     self.service.close()
                 else:
                     self.onecmd(_str(line))
-        except SystemExit:
+        except (SystemExit, KeyboardInterrupt):
             self.service.close()
             self.close()
         except Exception:
