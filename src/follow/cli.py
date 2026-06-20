@@ -1,86 +1,77 @@
 """
-Command line interface
+Command line interface (prompt-toolkit version)
 """
 import asyncio
-import shutil
-import sys
 import logging
-
-from typing import Any, Callable, TextIO
+import os
+import sys
+from typing import Any, Callable
 from asyncio import AbstractEventLoop
 from itertools import chain
+
+from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import WordCompleter, Completer, Completion  # noqa: F401
+from prompt_toolkit.history import FileHistory
+from prompt_toolkit.patch_stdout import patch_stdout
 
 from .commands import shell_commands, match_commands
 from .engine import SearchService
 from .util import (
     Closable, term_help,
-    # coerce_bytes as _bytes,
-    coerce_str as _str,
 )
 
 log = logging.getLogger()
 
-try:
-    import readline
-except ImportError:
-    readline = None  # type: ignore[assignment]
-
-prompt_default = '>>> '
-
-
-class Terminal:
-    """Virtual terminal"""
-    # Some ANSI/VT100 Terminal Control Escape Sequences
-    # http://www.termsys.demon.co.uk/vtansi.htm
-    esc = '\x1b['
-    erase_line = esc + '2K'
-    erase_down = esc + 'J'
-    erase_up = esc + '1J'
-    erase_screen = esc + '2J'
-    save_cursor = esc + 's'
-    unsave_cursor = esc + 'u'
-
-    def __init__(self, stdout: TextIO|None = None, stdin: TextIO|None = None,
-                 prompt: str = prompt_default, complete_key: str = 'tab') -> None:
-        self.prompt = prompt
-        self.stdout = stdout or sys.stdout
-        self.stdin = stdin or sys.stdin
-        self.complete_key = complete_key
-
-    @property
-    def goto_input(self) -> str:
-        height = shutil.get_terminal_size().lines - 1
-        return self.esc + '%d;0H' % ((height + 1),)
-
-    def set_scroll(self, n: int) -> str:
-        return self.esc + ('0;%dr' % n)
-
-    def emit(self, *strings: str, sep: str = ' ', end: str = '', flush: bool = True) -> None:
-        """Write string to stdout"""
-        self.stdout.write(_str(sep.join(strings)))
-        if end:
-            self.stdout.write(_str(end))
-        if flush:
-            self.stdout.flush()
-
-    def emit_line(self, line: str) -> None:
-        """Write string line to output without breaking input"""
-        buf = readline.get_line_buffer()
-        self.emit('\r', line, end='\n')
-        self.emit(self.prompt, buf)
-
 
 class SearchCli(Closable):
-    """Search command line interface for the terminal"""
+    """Search command line interface using prompt-toolkit."""
 
+    # default prompt string (can be overridden later)
+    prompt: str = '>>> '
+
+    def __init__(self, search_service: SearchService, loop: AbstractEventLoop = None) -> None:
+        super().__init__()
+        self.service = search_service  # search engine
+        self._loop = loop or asyncio.get_running_loop()
+
+        # command mapping
+        self._commands: dict[str, Callable] = {
+            'quit': self.do_quit,
+            'help': self.do_help,
+            'list': self.do_list,
+            **shell_commands,
+            **match_commands,
+        }
+
+        # History file for command recall
+        history_path = os.path.expanduser('~/.py-follow-history')
+        # Simple word completer for command names (Phase 2 will replace this)
+        self._session = PromptSession(
+            history=FileHistory(history_path),
+            completer=WordCompleter(list(self._commands)),
+        )
+
+    # ---------------------------------------------------------------------
+    # Utility output methods (replace the old Terminal.emit helpers)
+    # ---------------------------------------------------------------------
+    def emit(self, *strings: str, sep: str = ' ', end: str = '\n', flush: bool = True) -> None:
+        """Write to stdout (captured by prompt-toolkit's patch_stdout)."""
+        print(sep.join(strings), end=end, flush=flush, file=sys.stdout)
+
+    def emit_line(self, line: str) -> None:
+        """Print a line of output, safe under patch_stdout."""
+        self.emit(line)
+
+    # ---------------------------------------------------------------------
+    # Command implementations
+    # ---------------------------------------------------------------------
     def do_list(self, *args: Any) -> None:
         """List current set of files, colors, and/or matches."""
-        if not args:  # output all case
+        if not args:
             args = ('files', 'patterns')
-
         objects = [getattr(self.service.runtime, n, []) for n in args]
         lines = ['Available:'] + [str(o) for o in chain(*objects)]
-        self.term.emit('\n'.join(lines), end='\n')
+        self.emit('\n'.join(lines))
 
     @staticmethod
     def do_quit(*_: Any) -> None:
@@ -97,31 +88,30 @@ class SearchCli(Closable):
             else:
                 cmd_docs.append('')
         text: str = term_help(cmd_name, cmd_docs)
-        self.term.emit(text, end='\n')
+        self.emit(text)
 
-    def __init__(
-            self, search_service: SearchService, terminal: Terminal = None,
-            loop: AbstractEventLoop = None
-    ):
-        super().__init__()
-        self.service = search_service  # search engine
-        self.term = terminal or Terminal()  # virtual terminal
-        self._loop = loop or asyncio.get_running_loop()
+    # ---------------------------------------------------------------------
+    # Core CLI loop (async)
+    # ---------------------------------------------------------------------
+    async def loop(self) -> None:
+        """Async input loop using prompt-toolkit."""
+        with patch_stdout():
+            while not self.is_closed:
+                try:
+                    line = await self._session.prompt_async(self.prompt)
+                except EOFError:
+                    self.close()
+                    self.service.close()
+                else:
+                    self.onecmd(line.strip())
+        # ensure service is shut down when CLI ends
+        self.service.close()
 
-        # readline completer
-        self._prefix: str|None = None
-        self._possible: list[str] = []
-        self._commands: dict[str, Callable] = {
-            'quit': self.do_quit,
-            'help': self.do_help,
-            'list': self.do_list,
-            **shell_commands,
-            **match_commands,
-        }
-
+    # ---------------------------------------------------------------------
+    # Command parsing and dispatch
+    # ---------------------------------------------------------------------
     @staticmethod
-    def parse(line: str) -> tuple[str|None, list[str], str]:
-        """split line into cmd, args, original"""
+    def parse(line: str) -> tuple[str | None, list[str], str]:
         line = line.strip()
         if not line:
             return None, [], line
@@ -131,8 +121,7 @@ class SearchCli(Closable):
         return args[0], args[1:], line
 
     def onecmd(self, line: str) -> None:
-        """execute one do_<name> command"""
-        cmd_name, args, line = self.parse(line)
+        cmd_name, args, _ = self.parse(line)
         if not cmd_name:
             return
         method = self._commands.get(cmd_name)
@@ -141,42 +130,11 @@ class SearchCli(Closable):
             if obj:
                 self.service.add(obj)
         else:
-            self.term.emit('Unknown command: ', line, end='\n')
+            self.emit('Unknown command:', line)
 
-    def loop(self) -> None:
-        """terminal input loop"""
-        completer = readline.get_completer()
-        readline.set_completer(self.complete)
-        readline.parse_and_bind(self.term.complete_key + ": complete")
+    # ---------------------------------------------------------------------
+    # Phase‑2 placeholder for richer completions (will replace WordCompleter)
+    # ---------------------------------------------------------------------
+    # def complete(self, document, complete_event):
+    #     ...  # Future custom completer implementation
 
-        try:
-            while not self.is_closed:
-                try:
-                    line = input(self.term.prompt)
-                except EOFError:
-                    self.close()
-                    self.service.close()
-                else:
-                    self.onecmd(_str(line))
-        except (SystemExit, KeyboardInterrupt):
-            self.service.close()
-            self.close()
-        except Exception:
-            log.exception('cli loop error')
-        finally:
-            readline.set_completer(completer)
-            log.debug('finished cli loop -> closed: %s', self.is_closed)
-
-    def complete(self, prefix: str, index: int) -> str|None:
-        """readline complete method"""
-        if prefix != self._prefix:
-            # build list of possible matches to text
-            self._prefix = prefix
-            self._possible = [n for n in self._commands if n.startswith(prefix)]
-        result = None
-        try:
-            result = self._possible[index]
-        except IndexError:
-            pass
-        log.debug('complete(%r,%r) => %r', prefix, index, result)
-        return result

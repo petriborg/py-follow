@@ -78,19 +78,16 @@ async def async_main(options: argparse.Namespace) -> None:
     """
     async main creates a global context for execution
     """
-    from .cli import Terminal, SearchCli
+    from .cli import SearchCli
     from .engine import AsyncSearchService
 
     loop = asyncio.get_running_loop()
     try:
-        term = Terminal()
         service = AsyncSearchService(loop=loop)
-        cmdline = SearchCli(search_service=service, terminal=term, loop=loop)
+        cmdline = SearchCli(search_service=service, loop=loop)
 
         # run main application loop
-        cli_future = loop.run_in_executor(None, cmdline.loop)
-        await asyncio.gather(cli_future, service.loop(term))
-
+        await asyncio.gather(cmdline.loop(), service.loop(cmdline))
     finally:
         log.debug('close async loop')
 
