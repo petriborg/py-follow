@@ -1,6 +1,0 @@
---index-url https://pypi.python.org/simple/
-
-pyyaml
-gnureadline;platform_system=="Darwin"
-
--e .
