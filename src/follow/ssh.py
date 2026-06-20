@@ -29,7 +29,10 @@ async def get_client(user: str | None, host: str) -> asyncssh.SSHClient:
     log.debug("Establishing new SSH connection to %s (user=%s)", host, user)
     if asyncssh is None:
         raise ImportError('asyncssh is required for remote commands')
-    client = await asyncssh.connect(host, username=user)
+    kwargs = {}
+    if user:
+        kwargs['username'] = user
+    client = await asyncssh.connect(host, **kwargs)
     _connections[key] = client
     return client
 
