@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import sys
 import argparse
 
@@ -28,6 +29,16 @@ def setup_logging(is_debug: bool) -> None:
         level=logging.DEBUG if is_debug else logging.INFO,
         stream=sys.stderr,
     )
+    fmt = logging.Formatter(
+        '[%(threadName)s][%(levelname)s] %(module)s:%(funcName)s:%('
+        'lineno)s %(message)s'
+    )
+    if os.path.exists('error.log'):
+        os.replace('error.log', 'error.log.1')
+    err_handler = logging.FileHandler('error.log')
+    err_handler.setLevel(logging.WARNING)
+    err_handler.setFormatter(fmt)
+    root.addHandler(err_handler)
 
 
 class LoopPolicy(DefaultEventLoopPolicy):
@@ -59,7 +70,8 @@ def exception_handler(loop: asyncio.AbstractEventLoop, ctx: dict) -> None:
     'socket'    (optional): socket.socket instance;
     'asyncgen'  (optional): Asynchronous generator that caused the exception.
     """
-    log.error('Unhandled exception: ' + ctx['message'])
+    exc = ctx.get('exception')
+    log.error('Unhandled exception: %s', ctx['message'], exc_info=exc)
 
 
 async def async_main(options: argparse.Namespace) -> None:

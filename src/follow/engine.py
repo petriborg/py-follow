@@ -101,22 +101,23 @@ class AsyncSearchService(SearchService):
         Search 'file' for 'section.patterns', queueing colorized output
         for display.
         """
-        process = await self.open_file(file)
-        log.debug('search %r', process)
-
-        def close() -> None:
-            nonlocal process
-            log.debug('close subprocess %r', process)
-            try:
-                if process.returncode is None:
-                    log.info('terminate %r', process)
-                    process.terminate()
-                else:
-                    log.info('%r already terminated', process)
-            except ProcessLookupError:
-                pass  # ignore kill failures
-
+        process = None
         try:
+            process = await self.open_file(file)
+            log.debug('search %r', process)
+
+            def close() -> None:
+                nonlocal process
+                log.debug('close subprocess %r', process)
+                try:
+                    if process.returncode is None:
+                        log.info('terminate %r', process)
+                        process.terminate()
+                    else:
+                        log.info('%r already terminated', process)
+                except ProcessLookupError:
+                    pass  # ignore kill failures
+
             # while process is alive, search output for matches
             # queue resulting matches for display
             while process.returncode is None:
@@ -142,7 +143,8 @@ class AsyncSearchService(SearchService):
         except Exception:
             log.exception('line search error')
             self.close()
-            close()
+            if process is not None:
+                close()
         finally:
             log.debug('finished grep %r -> closed: %s',
                       file, self.is_closed)
