@@ -31,7 +31,7 @@ def setup_logging(is_debug: bool) -> None:
 
 
 class LoopPolicy(DefaultEventLoopPolicy):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def new_event_loop(self) -> AbstractEventLoop:
@@ -83,7 +83,7 @@ async def async_main(options: argparse.Namespace) -> None:
         log.debug('close async loop')
 
 
-def main():
+def main() -> None:
     setup_logging('--debug' in sys.argv)
 
     policy = LoopPolicy()
