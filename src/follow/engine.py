@@ -9,6 +9,7 @@ from typing import Any, Awaitable
 from asyncio import AbstractEventLoop, PriorityQueue
 
 from .commands import ShellCommand
+from .ssh import close_all
 from .util import Closable, syslog_date, coerce_str as _str
 from .colorize import colorize, gather, tokens_to_str
 
@@ -30,7 +31,7 @@ class SearchService(Closable):
         pass
 
     @abc.abstractmethod
-    def open_file(self, file: Any) -> Awaitable[asyncio.subprocess.Process]:
+    def open_file(self, file: Any) -> Awaitable[Any]:
         pass
 
     @abc.abstractmethod
@@ -78,20 +79,22 @@ class AsyncSearchService(SearchService):
         finally:
             log.debug('finished search loop -> closed: %s', self.is_closed)
 
-    async def open_file(self, file: Any) -> asyncio.subprocess.Process:
+    async def open_file(self, file: Any) -> Any:
         """
-        Open file for search
-        :param file:
-        :return: subprocess
+        Open file for search using the ShellCommand.run() method.
+        Returns a process-like object (local subprocess or SSH process).
         """
-        p = await asyncio.create_subprocess_shell(
-            file.shell,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL,
-            #loop=self._loop,
-        )
-        log.debug('open_file(%s) => %r', file.shell, p)
-        return p
+        # ``file`` is expected to be a ShellCommand (or subclass) instance.
+        # ``run`` handles both local and remote execution.
+        proc = await file.run()
+        log.debug('open_file(%s) => %r', getattr(file, 'shell', '<no shell>'), proc)
+        return proc
+
+    def close(self):
+        # Ensure SSH connections are closed on shutdown
+        super().close()
+        # Schedule async cleanup (non-blocking)
+        asyncio.ensure_future(close_all())
 
     async def search(self, file: Any) -> None:
         """

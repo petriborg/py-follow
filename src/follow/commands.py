@@ -3,14 +3,15 @@ Different command objects which pull data or operate on the data
 """
 from __future__ import annotations
 import re
-import typing
 
+from typing import Iterator
 from collections import namedtuple
 from types import SimpleNamespace
-from typing import Union
 from itertools import chain
 
 from .util import build_repr, path_re
+import asyncio
+from .ssh import get_client
 
 Color = namedtuple('Color', ['long', 'escape', 'short'])
 
@@ -28,10 +29,14 @@ def _parse_path(path: str) -> tuple[str|None, str|None, str]:
     return user, host, path
 
 
-def _build_tail_cmd(user: str | None, host: str | None, path: str, number: int | None = None, follow: bool = True) -> str:
+def _build_tail_cmd(
+    user: str | None,
+    host: str | None,
+    path: str,
+    number: int | None = None,
+    follow: bool = True
+) -> str:
     """generate shell script command"""
-
-
     follow_opt = '-F' if follow else ''
     follow_cmd = '{follow} {follow_opt} -n {number} {path} 2>&1'.format(
         follow='$(command -v gtail || command -v tail)',
@@ -56,8 +61,11 @@ def _build_tail_cmd(user: str | None, host: str | None, path: str, number: int |
 class ShellCommand(SimpleNamespace):
     """UNIX Shell command that can be piped to search"""
 
-    def __init__(self, exec: str, args: list[str],
-                 aliases: list[str] | None = None, remote: tuple[typing.Optional[str], typing.Optional[str]] | tuple[()] = ()) -> None:
+    def __init__(
+        self, exec: str, args: list[str],
+        aliases: list[str] | None = None,
+        remote: tuple[str|None, str|None] | tuple[()] = ()
+    ) -> None:
         super().__init__(exec=exec, args=args,
                          aliases=aliases or [],
                          remote=remote)
@@ -78,8 +86,14 @@ class ShellCommand(SimpleNamespace):
 
     @property
     def local(self) -> str:
-        # TODO handle aliases
-        # ex: $(command -v gtail || command -v tail) etc
+        # Resolve aliases (e.g., gtail) before the command
+        if self.aliases:
+            # Build a chain like "command -v gtail || command -v tail"
+            alias_chain = ' || '.join(f'command -v {a}' for a in self.aliases)
+            # Fallback to the original exec if none of the aliases exist
+            exec_part = f'$({alias_chain} || command -v {self.exec})'
+            return f"{exec_part} {' '.join(self.args)}"
+        # No alias handling needed
         return ' '.join(chain([self.exec], self.args))
 
     @property
@@ -92,6 +106,25 @@ class ShellCommand(SimpleNamespace):
         else:
             return self.local
 
+    async def run(self):
+        """Execute the command.
+
+        - If ``remote`` is set, run via asyncssh using the alias‑aware ``local`` string.
+        - Otherwise, run a local subprocess safely with ``create_subprocess_exec``.
+        """
+        if self.remote:
+            user, host = self.remote
+            client = await get_client(user, host)
+            # ``local`` already contains any required alias resolution
+            return await client.create_process(self.local)
+        # Local execution – use exec+args to avoid a shell when not needed
+        return await asyncio.create_subprocess_exec(
+            self.exec,
+            *self.args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+
 
 class Path(SimpleNamespace):
     """Path user@host:/path/to/file"""
@@ -101,14 +134,14 @@ class Path(SimpleNamespace):
         super().__init__(user=user, host=host, path=path)
 
     @property
-    def userhost(self) -> tuple[typing.Optional[str], typing.Optional[str]] | tuple[()]:
+    def userhost(self) -> tuple[str|None, str|None] | tuple[()]:
         return (self.user, self.host) if self.host else ()
 
 
 class Tail(ShellCommand):
     """tail [-n int] [-F] <Path>"""
 
-    def __init__(self, path: Union[str, Path], n: int = 10, f: bool = True) -> None:
+    def __init__(self, path: str|Path, n: int = 10, f: bool = True) -> None:
         if not isinstance(path, Path):
             path = Path(path)
         follow_opt = '-F' if f else ''
@@ -120,7 +153,7 @@ class Tail(ShellCommand):
 class Open(ShellCommand):
     """cat <Path>"""
 
-    def __init__(self, path: Union[str, Path]):
+    def __init__(self, path: str|Path):
         if not isinstance(path, Path):
             path = Path(path)
         super().__init__('cat', [path.path],
@@ -128,10 +161,12 @@ class Open(ShellCommand):
 
 
 class File(Open):
+    """cat <Path>"""
     pass
 
 
 class Follow(Tail):
+    """tail [-n int] [-F] <Path>"""
     pass
 
 
@@ -145,7 +180,7 @@ class Highlight:
         self.color = color
         self.regex = re.compile(regex)
 
-    def finditer(self, line: str) -> typing.Iterator[MatchResult]:
+    def finditer(self, line: str) -> Iterator[MatchResult]:
         for m in self.regex.finditer(line):
             yield MatchResult(m, self.color)
 
@@ -225,7 +260,7 @@ class AltReMatch:
 class MatchResult:
     """pattern match result for colorized lines"""
 
-    def __init__(self, match: typing.Union[re.Match[str], AltReMatch], color: typing.Union[Color, str, None]) -> None:
+    def __init__(self, match: re.Match[str]|AltReMatch, color: Color|str|None) -> None:
         self.start = match.start()
         self.end = match.end()
         self.text = match.group()
