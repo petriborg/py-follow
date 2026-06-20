@@ -88,7 +88,7 @@ def main():
 
     policy = LoopPolicy()
     asyncio.set_event_loop_policy(policy=policy)
-    loop = policy.get_event_loop()
+    loop = policy.new_event_loop()
 
     from .config import argv_parse
     options = argv_parse()
