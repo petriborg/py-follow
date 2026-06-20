@@ -40,8 +40,9 @@ async def close_all() -> None:
     """Close all cached SSH connections gracefully."""
     for (user, host), client in list(_connections.items()):
         try:
-            await client.close()
-            log.debug("Closed SSH connection to %s (user=%s)", host, user)
+            if client:
+                client.close()
+                log.debug("Closed SSH connection to %s (user=%s)", host, user)
         except Exception as exc:
             log.exception(
                 "Error while closing SSH client for %s@%s: %s", user, host, exc
