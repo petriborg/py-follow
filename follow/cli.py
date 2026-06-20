@@ -6,7 +6,7 @@ import shutil
 import sys
 import logging
 
-from typing import List, Tuple, Optional
+from typing import Optional, Callable
 from asyncio import AbstractEventLoop
 from itertools import chain
 
@@ -21,15 +21,9 @@ from .util import (
 log = logging.getLogger()
 
 try:
-    import gnureadline as readline
+    import readline
 except ImportError:
-    try:
-        import readline
-
-        if 'libedit' in readline.__doc__:
-            log.warn('MacOS X libedit readline in use, broken')
-    except ImportError:
-        readline = None
+    readline = None  # type: ignore[assignment]
 
 prompt_default = '>>> '
 
@@ -82,7 +76,7 @@ class SearchCli(Closable):
     def do_list(self, *args):
         """List current set of files, colors, and/or matches."""
         if not args:  # output all case
-            args = ['files', 'patterns']
+            args = ('files', 'patterns')
 
         objects = [getattr(self.service.runtime, n, []) for n in args]
         lines = ['Available:'] + [str(o) for o in chain(*objects)]
@@ -111,8 +105,8 @@ class SearchCli(Closable):
 
         # readline completer
         self._prefix = None
-        self._possible = []
-        self._commands = {
+        self._possible: list[str] = []
+        self._commands: dict[str, Callable] = {
             'quit': self.do_quit,
             'help': self.do_help,
             'list': self.do_list,
@@ -121,7 +115,7 @@ class SearchCli(Closable):
         }
 
     @staticmethod
-    def parse(line: str) -> Tuple[Optional[str], List[str], str]:
+    def parse(line: str) -> tuple[Optional[str], list[str], str]:
         """split line into cmd, args, original"""
         line = line.strip()
         if not line:

@@ -134,7 +134,7 @@ class AsyncSearchService(SearchService):
                     tokens = colorize(matches, line)
                     color_line = tokens_to_str(self.runtime, tokens)
                     self._queue.put_nowait((dt, color_line))
-        except:
+        except Exception:
             log.exception('line search error')
             self.close()
             close()

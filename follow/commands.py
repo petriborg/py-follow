@@ -4,7 +4,7 @@ Different command objects which pull data or operate on the data
 import re
 from collections import namedtuple
 from types import SimpleNamespace
-from typing import Union, List
+from typing import Union, Optional
 from itertools import chain
 
 from .util import build_repr, path_re
@@ -12,7 +12,7 @@ from .util import build_repr, path_re
 Color = namedtuple('Color', ['long', 'escape', 'short'])
 
 
-def _parse_path(path: str):
+def _parse_path(path: str) -> tuple[str | None, str | None, str]:
     """parse path input, returning tuple(user, host, path)"""
     m = path_re.match(path)
     if not m:
@@ -53,8 +53,8 @@ def _build_tail_cmd(user, host, path, number=None, follow=True):
 class ShellCommand(SimpleNamespace):
     """UNIX Shell command that can be piped to search"""
 
-    def __init__(self, exec: str, args: List[str],
-                 aliases: List[str] = None, remote=()):
+    def __init__(self, exec: str, args: list[str],
+                   aliases: list[str] | None = None, remote=()):
         super().__init__(exec=exec, args=args,
                          aliases=aliases or [],
                          remote=remote)
@@ -108,8 +108,8 @@ class Tail(ShellCommand):
     def __init__(self, path: Union[str, Path], n: int = 10, f: bool = True):
         if not isinstance(path, Path):
             path = Path(path)
-        f = '-F' if f else ''
-        super().__init__('tail', ['-n', str(n), f, path.path],
+        follow_opt = '-F' if f else ''
+        super().__init__('tail', ['-n', str(n), follow_opt, path.path],
                          aliases=['gtail'],
                          remote=path.userhost)
 

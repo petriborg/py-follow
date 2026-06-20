@@ -4,7 +4,7 @@
 
 import pytest
 from follow.commands import _parse_path, _build_tail_cmd, \
-    ShellCommand, Tail, Open, Path
+    Tail, Path
 
 
 @pytest.mark.parametrize('path,expected', [

@@ -13,19 +13,40 @@ authors = [{name = "Peter Cooner", email = "petercooner@gmail.com"}]
 
 # Dependencies
 dependencies = [
-    "gnureadline; platform_system == \"Darwin\"",
+    "types-PyYAML",
     "pyyaml"
 ]
 
 # Optional dependencies for tests
 [project.optional-dependencies]
-test = ["pytest>3.1", "requests"]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest>3.1",
+    "requests",
+]
 
 # Entry points for console scripts
 [project.scripts]
 py-follow = "follow.main:main"
 
 # Pytest configuration (replaces setup.cfg)
+[tool.ruff]
+line-length = 79
+exclude = [".git", "__pycache__"]
+# Soft limit: 79 columns, hard limit: 99 (handled by line-length and extra checks)
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = false
+strict = false
+
+disallow_untyped_defs = false
+#disallow_untyped_calls = false
+#disallow_untyped_defs = true
+check_untyped_defs = true
+no_implicit_optional = false
+
 [tool.pytest.ini_options]
 minversion = "3.1"
 python_files = "test_*.py"

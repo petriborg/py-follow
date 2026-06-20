@@ -11,14 +11,16 @@ from asyncio import DefaultEventLoopPolicy
 log = logging.getLogger()
 
 
-def setup_logging(is_debug):
+def setup_logging(is_debug) -> None:
     """
     Configure logging based on --debug in sys.argv
     :param is_debug:
     """
     root = logging.getLogger()
-    [root.removeHandler(h) for h in root.handlers[:]]
-    [root.removeFilter(f) for f in root.filters[:]]
+    for h in root.handlers[:]:
+        root.removeHandler(h)
+    for f in root.filters[:]:
+        root.removeFilter(f) 
     logging.basicConfig(
         format='[%(threadName)s][%(levelname)s] %(module)s:%(funcName)s:%('
                'lineno)s %(message)s',

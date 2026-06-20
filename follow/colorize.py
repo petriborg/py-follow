@@ -3,7 +3,7 @@ Matching, colors, terminal string building
 """
 
 import logging
-from typing import List, Tuple
+
 
 from .commands import Match, NegativeMatch, Color, MatchResult, AltReMatch
 from .util import (
@@ -39,9 +39,9 @@ def build_colors():
         'overline': esc + '06m',
     }
 
-    for x, (d, l) in enumerate(zip(dark_colors, light_colors), 30):
-        codes[d] = esc + '%im' % x
-        codes[l] = esc + '%i;01m' % x
+    for x, (dark, light) in enumerate(zip(dark_colors, light_colors), 30):
+        codes[dark] = esc + '%im' % x
+        codes[light] = esc + '%i;01m' % x
 
     # aliases
     codes['darkteal'] = codes['turquoise']
@@ -66,7 +66,7 @@ Green = color_lookup['green']
 default_colors = [Plain, Negative] + list(color_lookup.values())
 
 
-def colorize(matches, line):
+def colorize(matches, line) -> list[tuple[Color, str]]:
     """
     Colorize lines based on matches.
     Covers -
@@ -79,7 +79,7 @@ def colorize(matches, line):
     """
     m = AltReMatch(0, len(line), line)
     matches = [MatchResult(m, Plain)] + sorted(matches, key=lambda m: (m.start, -m.end))
-    colorized = []  # type: List[Tuple[Color, str]]
+    colorized: list[tuple[Color, str]] = []
 
     def color_first():
         current = matches.pop(0)
