@@ -39,7 +39,7 @@ def test_path_class():
 def test_shell_cmd():
     p1 = Path('user@host:/path')
     t1 = Tail(p1, 1, False)
-    assert t1.shell == 'ssh -l user host "tail -n 1  /path"'
+    assert t1.shell == 'ssh -l user host "$(command -v gtail || command -v tail) -n 1  /path"'
 
     p2 = Path('/path')
     t2 = Tail(p2)

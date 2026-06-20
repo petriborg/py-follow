@@ -14,7 +14,8 @@ authors = [{name = "Peter Cooner", email = "petercooner@gmail.com"}]
 # Dependencies
 dependencies = [
     "types-PyYAML",
-    "pyyaml"
+    "pyyaml",
+    "asyncssh",
 ]
 
 # Optional dependencies for tests
