@@ -64,7 +64,8 @@ Red = color_lookup['red']
 Blue = color_lookup['blue']
 Yellow = color_lookup['yellow']
 Green = color_lookup['green']
-default_colors = [Plain, Negative] + list(color_lookup.values())
+Reset = color_lookup['reset']
+default_colors = [Plain, Negative, Reset] + [c for k,c in color_lookup.items() if k!='reset']
 
 
 def colorize(matches: Iterable[MatchResult], line: str) -> list[tuple[Color|str|None, str]]:

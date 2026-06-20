@@ -59,8 +59,9 @@ class SearchCli(Closable):
         print(sep.join(strings), end=end, flush=flush, file=sys.stdout)
 
     def emit_line(self, line: str) -> None:
-        """Print a line of output, safe under patch_stdout."""
-        self.emit(line)
+        """Print a line of output with ANSI colors using prompt-toolkit."""
+        from prompt_toolkit import print_formatted_text, ANSI
+        print_formatted_text(ANSI(line))
 
     # ---------------------------------------------------------------------
     # Command implementations
