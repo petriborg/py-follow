@@ -94,7 +94,7 @@ class AsyncSearchService(SearchService):
         # Ensure SSH connections are closed on shutdown
         super().close()
         # Schedule async cleanup (non-blocking)
-        asyncio.ensure_future(close_all())
+        asyncio.ensure_future(close_all(), loop=self._loop)
 
     async def search(self, file: Any) -> None:
         """

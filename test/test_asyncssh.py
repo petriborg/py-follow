@@ -1,10 +1,9 @@
 # Tests for the async SSH integration in ShellCommand.
 
-import asyncio
 from unittest import mock
 import pytest
 
-from follow.commands import ShellCommand, Tail, Path
+from follow.commands import ShellCommand, Tail
 
 
 @pytest.mark.asyncio
