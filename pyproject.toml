@@ -16,6 +16,7 @@ dependencies = [
     "types-PyYAML",
     "pyyaml",
     "asyncssh",
+    "prompt-toolkit",
 ]
 
 # Optional dependencies for tests
