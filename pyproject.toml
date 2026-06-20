@@ -25,6 +25,7 @@ dev = [
     "mypy",
     "pytest>8",
     "pytest-cov",
+    "pytest-asyncio",
     "requests",
 ]
 

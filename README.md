@@ -49,6 +49,12 @@ group-name:
 ```
 
 ## Setup development environment
-```commandline
-$ ./setup.sh
+```bash
+uv sync --all-extras
 ```
+
+## Run Tests
+```bash
+uv run pytest
+```
+
