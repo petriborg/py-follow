@@ -122,7 +122,7 @@ class ShellCommand(SimpleNamespace):
             self.exec,
             *self.args,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
         )
 
 
