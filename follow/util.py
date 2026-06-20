@@ -3,6 +3,7 @@ Common utility methods
 """
 
 import os
+import typing
 import re
 import logging
 
@@ -16,16 +17,16 @@ path_re = re.compile(r'([^@]*@)?([^:]*:)?([^:]*)')
 _isdigit_re = re.compile(r'[0-9]*')
 
 
-def isdigit(s):
+def isdigit(s: str) -> typing.Optional[typing.Match[str]]:
     return _isdigit_re.match(s)
 
 
-def ispath(s):
+def ispath(s: str) -> typing.Optional[typing.Match[str]]:
     """matches user@host:/path"""
     return path_re.match(s)
 
 
-def expand_path(path):
+def expand_path(path: str) -> str:
     """expand environment variables and tilda in path"""
     if '$' in path:
         path = os.path.expandvars(path)
@@ -34,7 +35,7 @@ def expand_path(path):
     return path
 
 
-def syslog_date(line, now=None, fmt='%b %d %H:%M:%S'):
+def syslog_date(line: str, now: datetime | None = None, fmt: str = '%b %d %H:%M:%S') -> datetime:
     """Parse a log line, returning the datetime at the start of a line"""
     if now is None:
         now = datetime.now()
@@ -47,38 +48,37 @@ def syslog_date(line, now=None, fmt='%b %d %H:%M:%S'):
         return now
 
 
-def coerce_str(data):
+def coerce_str(data: typing.Any) -> str:
     """coerce data to str type"""
     if not isinstance(data, str) and hasattr(data, 'decode'):
         data = data.decode('utf-8')
-    return data
+    return str(data)
 
 
-def coerce_bytes(data):
+def coerce_bytes(data: typing.Any) -> bytes:
     """coerce data to bytes type"""
     if not isinstance(data, bytes) and hasattr(data, 'encode'):
         data = data.encode('utf-8')
-    return data
+    return bytes(data)
 
 
-def build_repr(clz, *attributes):
+def build_repr(clz: str, *attributes: str) -> typing.Callable[[typing.Any], str]:
     """generate __repr__ method for builder classes"""
 
-    def method(self):
+    def method(self: object) -> str:
         init = ', '.join('%s=%r' % (a, getattr(self, a)) for a in attributes)
         return '%s(%s)' % (clz, init)
 
     return method
 
 
-def trim_repr(obj, length=4, sep='...'):
+def trim_repr(obj: typing.Any, length: int = 4, sep: str = '...') -> str:
     """returns a trimmed repr string of obj"""
     obj_repr = repr(obj)
     return obj_repr[:length] + sep + obj_repr[-length:]
 
 
-def term_help(left_rows, right_rows,
-              indent=2, sep=2):
+def term_help(left_rows: list[str], right_rows: list[str], indent: int = 2, sep: int = 2) -> str:
     """
     returns text blob of two columns with indent and separator.
     """
@@ -98,7 +98,7 @@ def term_help(left_rows, right_rows,
                             sep_rows, right_rows)
 
 
-def column_formatter(format_str, widths, *columns):
+def column_formatter(format_str: str, widths: list[int], *columns: list[str]) -> str:
     """
     format_str describes the format of the report.
     {col[i]} is replaced by data from the ith element of columns.
@@ -127,7 +127,12 @@ def column_formatter(format_str, widths, *columns):
     return '\n'.join(result)
 
 
-def first(func, iterable, default=None, index=True):
+def first(
+    func: typing.Callable[[typing.Any], bool] | None,
+    iterable: typing.Iterable[typing.Any],
+    default: typing.Any = None,
+    index: bool = True
+) -> tuple[int | None, typing.Any]:
     """
     Returns the first item of iterable for which function(item) is true.
     If function is None, return the first item that is truthy. If nothing
@@ -135,20 +140,20 @@ def first(func, iterable, default=None, index=True):
     If index is True, return the index or None.
     """
     for idx, i in enumerate(iterable):
-        if func is None and i or func(i):
+        if func is None and i or func is not None and func(i):
             return idx, i if index else i
     return None, default if index else default
 
 
 class Closable:
-    def __init__(self):
+    def __init__(self) -> None:
         self._closed = False
 
     @property
-    def is_closed(self):
+    def is_closed(self) -> bool:
         return self._closed
 
-    def close(self):
+    def close(self) -> None:
         log.debug('Closing %r', self)
         self._closed = True
 
@@ -157,7 +162,7 @@ class Singleton(type):
     """metaclass"""
     _instances: dict[type, object] = {}
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls, *args: typing.Any, **kwargs: typing.Any) -> typing.Any:
         if cls not in cls._instances:
             cls._instances[cls] = \
                 super(Singleton, cls).__call__(*args, **kwargs)

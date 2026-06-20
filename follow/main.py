@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+import argparse
 
 from asyncio import (
     AbstractEventLoop,
@@ -11,7 +12,7 @@ from asyncio import DefaultEventLoopPolicy
 log = logging.getLogger()
 
 
-def setup_logging(is_debug) -> None:
+def setup_logging(is_debug: bool) -> None:
     """
     Configure logging based on --debug in sys.argv
     :param is_debug:
@@ -44,7 +45,7 @@ class LoopPolicy(DefaultEventLoopPolicy):
         return loop
 
 
-def exception_handler(loop, ctx):
+def exception_handler(loop: asyncio.AbstractEventLoop, ctx: dict) -> None:
     """
     context is a dict object containing the following keys (new keys may be
             introduced in future Python versions):
@@ -61,7 +62,7 @@ def exception_handler(loop, ctx):
     log.error('Unhandled exception: ' + ctx['message'])
 
 
-async def async_main(options):
+async def async_main(options: argparse.Namespace) -> None:
     """
     async main creates a global context for execution
     """

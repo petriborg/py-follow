@@ -4,6 +4,7 @@ Matching, colors, terminal string building
 
 import logging
 
+from typing import Any, Iterable
 
 from .commands import Match, NegativeMatch, Color, MatchResult, AltReMatch
 from .util import (
@@ -13,7 +14,7 @@ from .util import (
 log = logging.getLogger()
 
 
-def build_colors():
+def build_colors() -> dict[str, Color]:
     """generate list of Color objects for terminal"""
     cli = {  # shortcuts for program arguments
         'green': 'g',
@@ -66,7 +67,7 @@ Green = color_lookup['green']
 default_colors = [Plain, Negative] + list(color_lookup.values())
 
 
-def colorize(matches, line) -> list[tuple[Color, str]]:
+def colorize(matches: Iterable[MatchResult], line: str) -> list[tuple[Color|str|None, str]]:
     """
     Colorize lines based on matches.
     Covers -
@@ -79,12 +80,12 @@ def colorize(matches, line) -> list[tuple[Color, str]]:
     """
     m = AltReMatch(0, len(line), line)
     matches = [MatchResult(m, Plain)] + sorted(matches, key=lambda m: (m.start, -m.end))
-    colorized: list[tuple[Color, str]] = []
+    colorized: list[tuple[Color|str|None, str]] = []
 
-    def color_first():
+    def color_first() -> int:
         current = matches.pop(0)
 
-        def color_text(start, end):
+        def color_text(start: int, end: int) -> None:
             nonlocal current
             if end == start:
                 return  # skip over empty str
@@ -112,7 +113,7 @@ def colorize(matches, line) -> list[tuple[Color, str]]:
     return colorized
 
 
-def gather(patterns, line, requires_match):
+def gather(patterns: list[Any], line: str, requires_match: bool) -> tuple[list[MatchResult], bool]:
     """search line for matches"""
     matched = not requires_match
     matches = []
@@ -130,12 +131,15 @@ def gather(patterns, line, requires_match):
     return matches, matched
 
 
-def tokens_to_str(session, color_line):
+def tokens_to_str(session: Any, color_line: list[tuple[Color|str|None, str]]) -> str:
     """turn color_line into a color string"""
     reset = session.escape('reset')
 
-    def text(tk):
-        color = session.escape(tk[0])
-        return _str(color + tk[1] + reset)
+    def text(tk: tuple[Color|str|None, str]) -> str:
+        if tk[0]:
+            color = session.escape(tk[0])
+            return _str(color + tk[1] + reset)
+        else:
+            return tk[1]
 
     return ''.join(text(c) for c in color_line)

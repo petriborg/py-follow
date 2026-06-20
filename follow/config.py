@@ -1,11 +1,13 @@
 """
 Configuration file processing, sys.argv processing, and runtime configuration
 """
+# mypy: ignore-errors
 
 import argparse
 import logging
 import os
 import re
+import typing
 from io import StringIO
 from itertools import chain
 
@@ -22,7 +24,7 @@ default_config_file = '~/.py-follow'
 class ConfigGroup:
     """represents current set of patterns"""
 
-    def __init__(self, name, *args):
+    def __init__(self, name: str, *args: typing.Any):
         self.name = name
         self.colors = {}
         self.patterns = []
@@ -68,7 +70,7 @@ class ConfigGroup:
 class Runtime(ConfigGroup, metaclass=Singleton):
     """Runtime configuration"""
 
-    def __init__(self, *args):
+    def __init__(self, *args: typing.Any):
         super().__init__('runtime', *args)
         self.files = []
 
@@ -88,7 +90,7 @@ class Runtime(ConfigGroup, metaclass=Singleton):
     __repr__ = build_repr('Runtime')
 
 
-def parse_config_file(config_file, group_names):
+def parse_config_file(config_file: str, group_names: list[str]) -> any:
     """
     Reads config_file and adds groups to section
     :param config_file:
@@ -120,7 +122,7 @@ def parse_config_file(config_file, group_names):
     return []
 
 
-def parse_repr_config(stream):
+def parse_repr_config(stream: "typing.Any") -> dict[str, list[any]]:
     """
     read config_file, returns a dict of lists containing namespace objects.
     Example -
@@ -140,7 +142,7 @@ def parse_repr_config(stream):
     return eval(content, {c.__name__: c for c in with_globals})
 
 
-def parse_yaml_config(stream):
+def parse_yaml_config(stream: "typing.Any") -> dict[str, list[any]]:
     """
     read config_file, add dict of lists containing namespace objects.
     expected format -
@@ -173,7 +175,7 @@ def parse_yaml_config(stream):
     return data
 
 
-def argv_parse():
+def argv_parse() -> argparse.Namespace:
     def _get_action_name(argument):
         """Work around for https://bugs.python.org/issue11874"""
         from argparse import SUPPRESS

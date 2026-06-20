@@ -6,7 +6,7 @@ import shutil
 import sys
 import logging
 
-from typing import Optional, Callable
+from typing import Any, Callable, TextIO
 from asyncio import AbstractEventLoop
 from itertools import chain
 
@@ -40,22 +40,22 @@ class Terminal:
     save_cursor = esc + 's'
     unsave_cursor = esc + 'u'
 
-    def __init__(self, stdout=None, stdin=None,
-                 prompt=prompt_default, complete_key='tab'):
+    def __init__(self, stdout: TextIO|None = None, stdin: TextIO|None = None,
+                 prompt: str = prompt_default, complete_key: str = 'tab') -> None:
         self.prompt = prompt
         self.stdout = stdout or sys.stdout
         self.stdin = stdin or sys.stdin
         self.complete_key = complete_key
 
     @property
-    def goto_input(self):
+    def goto_input(self) -> str:
         height = shutil.get_terminal_size().lines - 1
         return self.esc + '%d;0H' % ((height + 1),)
 
-    def set_scroll(self, n):
+    def set_scroll(self, n: int) -> str:
         return self.esc + ('0;%dr' % n)
 
-    def emit(self, *strings, sep=' ', end='', flush=True):
+    def emit(self, *strings: str, sep: str = ' ', end: str = '', flush: bool = True) -> None:
         """Write string to stdout"""
         self.stdout.write(_str(sep.join(strings)))
         if end:
@@ -63,7 +63,7 @@ class Terminal:
         if flush:
             self.stdout.flush()
 
-    def emit_line(self, line):
+    def emit_line(self, line: str) -> None:
         """Write string line to output without breaking input"""
         buf = readline.get_line_buffer()
         self.emit('\r', line, end='\n')
@@ -73,7 +73,7 @@ class Terminal:
 class SearchCli(Closable):
     """Search command line interface for the terminal"""
 
-    def do_list(self, *args):
+    def do_list(self, *args: Any) -> None:
         """List current set of files, colors, and/or matches."""
         if not args:  # output all case
             args = ('files', 'patterns')
@@ -83,15 +83,20 @@ class SearchCli(Closable):
         self.term.emit('\n'.join(lines), end='\n')
 
     @staticmethod
-    def do_quit(*args):
+    def do_quit(*_: Any) -> None:
         """Exit application."""
         raise SystemExit
 
-    def do_help(self, *_):
+    def do_help(self, *_: Any) -> None:
         """Shows this help message."""
-        cmd_name = ['Commands:'] + list(self._commands)
-        cmd_docs = [''] + [m.__doc__ for m in self._commands.values()]
-        text = term_help(cmd_name, cmd_docs)
+        cmd_name: list[str] = ['Commands:'] + list(self._commands)
+        cmd_docs: list[str] = ['']
+        for m in self._commands.values():
+            if m is not None and m.__doc__:
+                cmd_docs.append(m.__doc__)
+            else:
+                cmd_docs.append('')
+        text: str = term_help(cmd_name, cmd_docs)
         self.term.emit(text, end='\n')
 
     def __init__(
@@ -104,7 +109,7 @@ class SearchCli(Closable):
         self._loop = loop or asyncio.get_running_loop()
 
         # readline completer
-        self._prefix = None
+        self._prefix: str|None = None
         self._possible: list[str] = []
         self._commands: dict[str, Callable] = {
             'quit': self.do_quit,
@@ -115,7 +120,7 @@ class SearchCli(Closable):
         }
 
     @staticmethod
-    def parse(line: str) -> tuple[Optional[str], list[str], str]:
+    def parse(line: str) -> tuple[str|None, list[str], str]:
         """split line into cmd, args, original"""
         line = line.strip()
         if not line:
@@ -125,7 +130,7 @@ class SearchCli(Closable):
         args = line.split()
         return args[0], args[1:], line
 
-    def onecmd(self, line: str):
+    def onecmd(self, line: str) -> None:
         """execute one do_<name> command"""
         cmd_name, args, line = self.parse(line)
         if not cmd_name:
@@ -138,7 +143,7 @@ class SearchCli(Closable):
         else:
             self.term.emit('Unknown command: ', line, end='\n')
 
-    def loop(self):
+    def loop(self) -> None:
         """terminal input loop"""
         completer = readline.get_completer()
         readline.set_completer(self.complete)
@@ -162,7 +167,7 @@ class SearchCli(Closable):
             readline.set_completer(completer)
             log.debug('finished cli loop -> closed: %s', self.is_closed)
 
-    def complete(self, prefix, index):
+    def complete(self, prefix: str, index: int) -> str|None:
         """readline complete method"""
         if prefix != self._prefix:
             # build list of possible matches to text

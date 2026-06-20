@@ -5,6 +5,7 @@ Main search engine.
 import abc
 import asyncio
 import logging
+from typing import Any, Awaitable
 from asyncio import AbstractEventLoop, PriorityQueue
 
 from .commands import ShellCommand
@@ -15,25 +16,25 @@ log = logging.getLogger()
 
 
 class SearchService(Closable):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         from .config import Runtime
         self.runtime = Runtime()
 
     @abc.abstractmethod
-    def loop(self, term):
+    def loop(self, term: Any) -> Awaitable[None]:
         pass
 
     @abc.abstractmethod
-    def add(self, obj):
+    def add(self, obj: Any) -> None:
         pass
 
     @abc.abstractmethod
-    def open_file(self, file):
+    def open_file(self, file: Any) -> Awaitable[asyncio.subprocess.Process]:
         pass
 
     @abc.abstractmethod
-    def search(self, file):
+    def search(self, file: Any) -> Awaitable[None]:
         pass
 
 
@@ -55,12 +56,12 @@ class AsyncSearchService(SearchService):
         for file in self.runtime.files:
             asyncio.ensure_future(self.search(file), loop=self._loop)
 
-    def add(self, obj):
+    def add(self, obj: Any) -> None:
         self.runtime.add(obj)
         if isinstance(obj, ShellCommand):
             asyncio.ensure_future(self.search(obj), loop=self._loop)
 
-    async def loop(self, terminal):
+    async def loop(self, terminal: Any) -> None:
         """pulls from the print queue and writes to terminal"""
         try:
             log.debug('search loop -> closed: %s', self.is_closed)
@@ -77,7 +78,7 @@ class AsyncSearchService(SearchService):
         finally:
             log.debug('finished search loop -> closed: %s', self.is_closed)
 
-    async def open_file(self, file):
+    async def open_file(self, file: Any) -> asyncio.subprocess.Process:
         """
         Open file for search
         :param file:
@@ -92,7 +93,7 @@ class AsyncSearchService(SearchService):
         log.debug('open_file(%s) => %r', file.shell, p)
         return p
 
-    async def search(self, file):
+    async def search(self, file: Any) -> None:
         """
         Search 'file' for 'section.patterns', queueing colorized output
         for display.
@@ -100,7 +101,7 @@ class AsyncSearchService(SearchService):
         process = await self.open_file(file)
         log.debug('search %r', process)
 
-        def close():
+        def close() -> None:
             nonlocal process
             log.debug('close subprocess %r', process)
             try:
@@ -121,9 +122,10 @@ class AsyncSearchService(SearchService):
                     break
 
                 try:
-                    line = await asyncio.wait_for(
+                    assert process.stdout is not None
+                    byte_line = await asyncio.wait_for(
                         process.stdout.readline(), 0.1)
-                    line = _str(line).rstrip()
+                    line = _str(byte_line).rstrip()
                 except asyncio.TimeoutError:
                     continue
 
