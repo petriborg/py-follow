@@ -27,7 +27,7 @@ def _parse_path(path: str):
 
 def _build_tail_cmd(user, host, path, number=None, follow=True):
     """generate shell script command"""
-    print((user, host, path))
+
 
     follow_opt = '-F' if follow else ''
     follow_cmd = '{follow} {follow_opt} -n {number} {path} 2>&1'.format(

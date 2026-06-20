@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "py-follow"
+version = "0.4.0"
+description = "Tail (or search) local (or remote) file(s) and colorize the result."
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "GPL-3.0"}
+authors = [{name = "Peter Cooner", email = "petercooner@gmail.com"}]
+
+# Dependencies
+dependencies = [
+    "gnureadline; platform_system == \"Darwin\"",
+    "pyyaml"
+]
+
+# Optional dependencies for tests
+[project.optional-dependencies]
+test = ["pytest>3.1", "requests"]
+
+# Entry points for console scripts
+[project.scripts]
+py-follow = "follow.main:main"
+
+# Pytest configuration (replaces setup.cfg)
+[tool.pytest.ini_options]
+minversion = "3.1"
+python_files = "test_*.py"
+testpaths = ["test"]

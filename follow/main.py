@@ -5,9 +5,7 @@ import sys
 from asyncio import (
     AbstractEventLoop,
 )
-from asyncio.unix_events import (
-    DefaultEventLoopPolicy,
-)
+from asyncio import DefaultEventLoopPolicy
 
 
 log = logging.getLogger()
@@ -68,7 +66,7 @@ async def async_main(options):
     from .cli import Terminal, SearchCli
     from .engine import AsyncSearchService
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     try:
         term = Terminal()
         service = AsyncSearchService(loop=loop)

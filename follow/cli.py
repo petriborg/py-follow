@@ -107,7 +107,7 @@ class SearchCli(Closable):
         super().__init__()
         self.service = search_service  # search engine
         self.term = terminal or Terminal()  # virtual terminal
-        self._loop = loop or asyncio.get_event_loop()
+        self._loop = loop or asyncio.get_running_loop()
 
         # readline completer
         self._prefix = None

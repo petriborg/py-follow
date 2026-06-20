@@ -47,7 +47,7 @@ class AsyncSearchService(SearchService):
             queue: PriorityQueue = None,
             loop: AbstractEventLoop = None
     ):
-        self._loop = loop or asyncio.get_event_loop()
+        self._loop = loop or asyncio.get_running_loop()
         self._queue = queue or asyncio.PriorityQueue()
         super().__init__()
 
