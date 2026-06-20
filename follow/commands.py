@@ -1,12 +1,13 @@
 """
 Different command objects which pull data or operate on the data
 """
+from __future__ import annotations
 import re
 import typing
 
 from collections import namedtuple
 from types import SimpleNamespace
-from typing import Any, Union
+from typing import Union
 from itertools import chain
 
 from .util import build_repr, path_re
