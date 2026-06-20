@@ -11,7 +11,7 @@ from itertools import chain
 
 from .util import build_repr, path_re
 import asyncio
-from .ssh import get_client
+from . import ssh
 
 Color = namedtuple('Color', ['long', 'escape', 'short'])
 
@@ -86,14 +86,14 @@ class ShellCommand(SimpleNamespace):
 
     @property
     def local(self) -> str:
-        # Resolve aliases (e.g., gtail) before the command
-        if self.aliases:
+        # Resolve aliases (e.g., gtail) before the command for remote commands only
+        if self.aliases and self.remote:
             # Build a chain like "command -v gtail || command -v tail"
             alias_chain = ' || '.join(f'command -v {a}' for a in self.aliases)
             # Fallback to the original exec if none of the aliases exist
             exec_part = f'$({alias_chain} || command -v {self.exec})'
             return f"{exec_part} {' '.join(self.args)}"
-        # No alias handling needed
+        # No alias handling needed or not remote
         return ' '.join(chain([self.exec], self.args))
 
     @property
@@ -114,7 +114,7 @@ class ShellCommand(SimpleNamespace):
         """
         if self.remote:
             user, host = self.remote
-            client = await get_client(user, host)
+            client = await ssh.get_client(user, host)
             # ``local`` already contains any required alias resolution
             return await client.create_process(self.local)
         # Local execution – use exec+args to avoid a shell when not needed
