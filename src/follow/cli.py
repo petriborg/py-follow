@@ -74,10 +74,10 @@ class SearchCli(Closable):
         lines = ['Available:'] + [str(o) for o in chain(*objects)]
         self.emit('\n'.join(lines))
 
-    @staticmethod
-    def do_quit(*_: Any) -> None:
+    def do_quit(self, *_: Any) -> None:
         """Exit application."""
-        raise SystemExit
+        self.close()
+        self.service.close()
 
     def do_help(self, *_: Any) -> None:
         """Shows this help message."""
