@@ -37,6 +37,9 @@ class SearchService(Closable):
         pass
 
 
+_sentinel = object()
+
+
 class AsyncSearchService(SearchService):
     """
     https://stackoverflow.com/a/37430948
@@ -47,19 +50,18 @@ class AsyncSearchService(SearchService):
             queue: PriorityQueue = None,
             loop: AbstractEventLoop = None
     ):
-        self._loop = loop or asyncio.get_running_loop()
         self._queue = queue or asyncio.PriorityQueue(maxsize=100)
         self._search_tasks: list[asyncio.Task] = []
         super().__init__()
 
         for file in self.runtime.files:
-            task = asyncio.ensure_future(self.search(file), loop=self._loop)
+            task = asyncio.ensure_future(self.search(file))
             self._search_tasks.append(task)
 
     def add(self, obj: Any) -> None:
         self.runtime.add(obj)
         if isinstance(obj, ShellCommand):
-            task = asyncio.ensure_future(self.search(obj), loop=self._loop)
+            task = asyncio.ensure_future(self.search(obj))
             self._search_tasks.append(task)
 
     async def loop(self, terminal: Any) -> None:
@@ -67,6 +69,8 @@ class AsyncSearchService(SearchService):
             log.debug('search loop -> closed: %s', self.is_closed)
             while not self.is_closed:
                 dt, line = await self._queue.get()
+                if line is _sentinel:
+                    break
                 terminal.emit_line(line)
                 await asyncio.sleep(0)
         except Exception:
@@ -80,12 +84,15 @@ class AsyncSearchService(SearchService):
         log.debug('open_file(%s) => %r', getattr(file, 'shell', '<no shell>'), proc)
         return proc
 
-    def close(self):
+    def close(self) -> None:
+        if self.is_closed:
+            return
+        super().close()
         for task in self._search_tasks:
             task.cancel()
         self._search_tasks.clear()
-        super().close()
-        asyncio.ensure_future(close_all(), loop=self._loop)
+        self._queue.put_nowait((0, _sentinel))
+        asyncio.ensure_future(close_all())
 
     async def search(self, file: Any) -> None:
         process = None
@@ -111,6 +118,7 @@ class AsyncSearchService(SearchService):
                     tokens = colorize(matches, line)
                     color_line = tokens_to_str(self.runtime, tokens)
                     await self._queue.put((dt, color_line))
+                await asyncio.sleep(0)
         except asyncio.CancelledError:
             pass
         except Exception:

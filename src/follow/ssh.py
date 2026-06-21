@@ -5,17 +5,17 @@
 try:
     import asyncssh
 except ImportError as _asyncssh_import_error:
-    asyncssh = None
+    asyncssh = None  # type: ignore[assignment]
     _import_error = _asyncssh_import_error
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Any
 from .util import log
 
 
 # Global connection cache: (user, host) -> SSHClient
-_connections: Dict[Tuple[str | None, str], asyncssh.SSHClient] = {}
+_connections: Dict[Tuple[str | None, str], Any] = {}
 
 
-async def get_client(user: str | None, host: str) -> asyncssh.SSHClient:
+async def get_client(user: str | None, host: str) -> Any:
     """Return a cached SSHClient for ``host``/``user`` or create a new one.
 
     If a cached client exists and is still open, it is reused.
@@ -42,7 +42,7 @@ async def close_all() -> None:
     for (user, host), client in list(_connections.items()):
         try:
             if client:
-                client.close()
+                client.close()  # type: ignore[attr-defined]
                 log.debug("Closed SSH connection to %s (user=%s)", host, user)
         except Exception as exc:
             log.exception(

@@ -8,8 +8,6 @@ python -m follow ...
 
 
 if __name__ == '__main__':
-    import sys
-    from .main import main, setup_logging
+    from .main import main
 
-    setup_logging('--debug' in sys.argv)
     main()

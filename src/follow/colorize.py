@@ -7,7 +7,6 @@ from typing import Any, Iterable
 from .commands import Match, NegativeMatch, Color, MatchResult, AltReMatch
 from .util import (
     coerce_str as _str,
-    log,
 )
 
 

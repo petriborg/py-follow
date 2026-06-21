@@ -1,33 +1,68 @@
+import argparse
 import asyncio
-import logging
 import os
 import sys
-import argparse
+import time
+import yaml
+import logging
+import logging.config
 
+from textwrap import dedent
 from asyncio import AbstractEventLoop, DefaultEventLoopPolicy
 from .util import log
 
+log_filename_default = 'debug.log'
+log_format_default = "[%(threadName)s][%(levelname)s] %(module)s:%(funcName)s:%(lineno)s %(message)s"
+log_config_yaml_default = dedent("""
+    ---
+    version: 1
+    formatters:
+      standard:
+        format: '{log_format}'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: standard
+        level: {log_level}
+      applog:
+        class: logging.FileHandler
+        formatter: standard
+        filename: {log_filename}
+        level: {log_level}
+    root:
+      handlers: [console, applog]
+      level: {log_level}
+    """)
 
-def setup_logging(is_debug: bool) -> None:
+
+
+def setup_logging(
+    is_debug: bool,
+    is_boot: bool = False,
+    log_filename: str = log_filename_default,
+    log_format: str = log_format_default,
+    log_config: str = log_config_yaml_default,
+) -> None:
+    """setup application logging"""
+    if os.path.exists(log_filename):
+        os.replace(log_filename, log_filename+'.1')
+    if is_boot:
+        logging.basicConfig(
+            format=log_format,
+            level=logging.DEBUG if is_debug else logging.DEBUG,
+            stream=sys.stdout,
+        )
+        return
+
+    log_config = log_config.format(
+        log_format=log_format,
+        log_filename=log_filename,
+        log_level='DEBUG' if is_debug else 'INFO',
+    )
+    data = yaml.load(log_config, yaml.SafeLoader)
+    logging.config.dictConfig(data)
     root = logging.getLogger()
-    for h in root.handlers[:]:
-        root.removeHandler(h)
-    for f in root.filters[:]:
-        root.removeFilter(f)
-    logging.basicConfig(
-        format='[%(threadName)s][%(levelname)s] %(module)s:%(funcName)s:%(lineno)s %(message)s',
-        level=logging.DEBUG if is_debug else logging.INFO,
-        stream=sys.stderr,
-    )
-    fmt = logging.Formatter(
-        '[%(threadName)s][%(levelname)s] %(module)s:%(funcName)s:%(lineno)s %(message)s'
-    )
-    if os.path.exists('error.log'):
-        os.replace('error.log', 'error.log.1')
-    err_handler = logging.FileHandler('error.log')
-    err_handler.setLevel(logging.WARNING)
-    err_handler.setFormatter(fmt)
-    root.addHandler(err_handler)
+    root.info('logging configured')
 
 
 class LoopPolicy(DefaultEventLoopPolicy):
@@ -47,6 +82,19 @@ def exception_handler(loop: asyncio.AbstractEventLoop, ctx: dict) -> None:
     log.error('Unhandled exception: %s', ctx['message'], exc_info=exc)
 
 
+async def heartbeat() -> None:
+    """Ticks every second; logs how late the tick was.
+    Near-zero lag = loop is healthy. Growing lag = something is
+    blocking the event loop synchronously."""
+    last = time.monotonic()
+    while True:
+        await asyncio.sleep(1)
+        now = time.monotonic()
+        lag = now - last - 1
+        log.info('heartbeat tick, loop lag=%.3fs', lag)
+        last = now
+
+
 async def async_main(options: argparse.Namespace) -> None:
     from .cli import SearchCli
     from .engine import AsyncSearchService
@@ -54,8 +102,11 @@ async def async_main(options: argparse.Namespace) -> None:
     loop = asyncio.get_running_loop()
     service = AsyncSearchService(loop=loop)
     cmdline = SearchCli(search_service=service, loop=loop)
+    hb_task = asyncio.ensure_future(heartbeat())
 
     await asyncio.gather(cmdline.loop(), service.loop(cmdline))
+
+    hb_task.cancel()
 
     # Cancel any remaining background tasks (search, close_all, etc.)
     me = asyncio.current_task()
@@ -75,7 +126,8 @@ def main() -> None:
 
     from .config import argv_parse
     options = argv_parse()
-    setup_logging(options.debug)
+    loop.set_debug(options.debug)      # <-- new: turn on asyncio debug mode
+    loop.slow_callback_duration = 0.05 # <-- new: flag callbacks slower than 50ms
     try:
         loop.run_until_complete(async_main(options))
     except KeyboardInterrupt:

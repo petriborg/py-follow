@@ -15,7 +15,7 @@ from prompt_toolkit.patch_stdout import patch_stdout
 
 from .commands import shell_commands, match_commands
 from .engine import SearchService
-from .util import Closable, term_help, log
+from .util import Closable, term_help
 
 
 class SearchCli(Closable):
@@ -23,6 +23,7 @@ class SearchCli(Closable):
 
     # default prompt string (can be overridden later)
     prompt: str = '>>> '
+    _session: PromptSession  # type: ignore[assignment]
 
     def __init__(self, search_service: SearchService, loop: AbstractEventLoop = None) -> None:
         super().__init__()

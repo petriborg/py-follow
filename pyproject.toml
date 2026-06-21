@@ -28,6 +28,7 @@ dev = [
     "pytest-cov",
     "pytest-asyncio",
     "requests",
+    "ipython",
 ]
 
 # Entry points for console scripts

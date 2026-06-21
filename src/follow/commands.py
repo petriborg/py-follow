@@ -90,9 +90,9 @@ class ShellCommand(SimpleNamespace):
         # Resolve aliases (e.g., gtail) before the command for remote commands only
         if self.aliases and self.remote:
             # Build a chain like "command -v gtail || command -v tail"
-            alias_chain = ' || '.join(f'command -v {a}' for a in self.aliases)
+            #alias_chain = ' || '.join(f'command -v {a}' for a in self.aliases)
             # Fallback to the original exec if none of the aliases exist
-            exec_part = f'$({alias_chain} || command -v {self.exec})'
+            #exec_part = f'$({alias_chain} || command -v {self.exec})'
             #return f"{exec_part} {' '.join(self.args)}"
             return f"{self.exec} {' '.join(self.args)}"
         # No alias handling needed or not remote
@@ -108,7 +108,7 @@ class ShellCommand(SimpleNamespace):
         else:
             return self.local
 
-    async def run(self):
+    async def run(self) -> asyncio.subprocess.Process:
         """Execute the command.
 
         - If ``remote`` is set, run via asyncssh using the alias‑aware ``local`` string.
@@ -119,7 +119,7 @@ class ShellCommand(SimpleNamespace):
             client = await ssh.get_client(user, host)
             # ``local`` already contains any required alias resolution
             log.debug('%s', self.local)
-            return await client.create_process(
+            return await client.create_process(  # type: ignore[attr-defined]
                 self.local,
                 #stdout=asyncio.subprocess.PIPE,
                 #stderr=asyncio.subprocess.PIPE,
@@ -128,8 +128,9 @@ class ShellCommand(SimpleNamespace):
         return await asyncio.create_subprocess_exec(
             self.exec,
             *self.args,
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
         )
 
 
