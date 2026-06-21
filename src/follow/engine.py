@@ -113,24 +113,25 @@ class AsyncSearchService(SearchService):
                         process.terminate()
                     else:
                         log.info('%r already terminated', process)
-                except ProcessLookupError:
-                    pass  # ignore kill failures
+                except (ProcessLookupError, OSError):
+                    pass
 
             # while process is alive, search output for matches
             # queue resulting matches for display
-            while process.returncode is None:
-                if self.is_closed:
-                    close()
-                    break
-
+            while not self.is_closed:
                 try:
                     assert process.stdout is not None
                     byte_line = await asyncio.wait_for(
                         process.stdout.readline(), 0.1)
-                    line = _str(byte_line).rstrip()
                 except asyncio.TimeoutError:
+                    if process.returncode is not None:
+                        break
                     continue
 
+                if not byte_line:
+                    break
+
+                line = _str(byte_line).rstrip()
                 matches, print_line = gather(
                     self.runtime.patterns, line, self.runtime.requires_match)
                 if print_line:

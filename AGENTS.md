@@ -1,10 +1,22 @@
 # AGENTS.md – Quick reference for OpenCode agents
 
 ## Core workflow
-- **Setup** – Run `uv sync --all-extras` to install runtime (`asyncssh` is required).
-- **Test suite** – `uv run pytest` (includes async‑ssh tests).
-- **CLI entry point** – `py-follow` is defined in `pyproject.toml` → `follow.main:main`.
-- **mypy and ruff** - `uv run mypy` and `uv run ruff check --fix`
+- **Setup** – Install dependencies via `uv sync --all-extras` (requires asyncssh).
+- **Test suite** – Run `uv run pytest`.
+- **CLI entry point** – `py-follow` defined in `pyproject.toml` → `follow.main:main`.
+- **Static analysis** – `uv run mypy` and `uv run ruff check --fix`.
+
+## Modules Overview
+- `main.py`: Sets up logging, event loop, parses CLI options, runs async main loop.
+- `util.py`: Helper utilities (path parsing, logging, string conversion, singleton, etc.).
+- `ssh.py`: AsyncSSH connection pool management (`get_client`, `close_all`).
+- `commands.py`: Core command objects (`ShellCommand`, `Path`, `Tail`, `Open`, `Highlight`, `Match`, `NegativeMatch`) and match handling.
+- `cli.py`: Interactive CLI built with prompt‑toolkit, command dispatch, help.
+- `engine.py`: Search engine (`AsyncSearchService`) handling file processing, queuing output.
+- `colorize.py`: Color definitions, building ANSI codes, applying highlights to lines.
+- `config.py`: Configuration parsing (config files, command‑line args), runtime singleton.
+- `__init__.py`: Package metadata (`__version__`, `__application__`).
+- `__main__.py`: Script entry point for `python -m follow`.
 
 ## Command‑line syntax
 - **File argument format** – `[[USER@]HOST:]FILE`.  Parsed by `ShellCommand._parse_path`.

@@ -17,9 +17,8 @@ def test_parse_path(path, expected):
 
 
 @pytest.mark.parametrize('path,follow,expected', [
-    ('foo@bar:baz', True, 'ssh -l foo bar "$(command -v gtail || command -v '
-                          'tail) -F -n 10 baz 2>&1"'),
-    ('baz', True, '$(command -v gtail || command -v tail) -F -n 10 baz 2>&1'),
+    ('foo@bar:baz', True, 'ssh -l foo bar "tail -F -n 10 baz 2>&1"'),
+    ('baz', True, 'tail -F -n 10 baz 2>&1'),
 ])
 def test_build_shell_cmd(path, follow, expected):
     assert _build_tail_cmd(*_parse_path(path), 10, follow) == expected
@@ -39,7 +38,7 @@ def test_path_class():
 def test_shell_cmd():
     p1 = Path('user@host:/path')
     t1 = Tail(p1, 1, False)
-    assert t1.shell == 'ssh -l user host "$(command -v gtail || command -v tail) -n 1  /path"'
+    assert t1.shell == 'ssh -l user host "tail -n 1  /path"'
 
     p2 = Path('/path')
     t2 = Tail(p2)

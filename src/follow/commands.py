@@ -121,8 +121,8 @@ class ShellCommand(SimpleNamespace):
             log.debug('%s', self.local)
             return await client.create_process(
                 self.local,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                #stdout=asyncio.subprocess.PIPE,
+                #stderr=asyncio.subprocess.PIPE,
             )
         # Local execution – use exec+args to avoid a shell when not needed
         return await asyncio.create_subprocess_exec(
