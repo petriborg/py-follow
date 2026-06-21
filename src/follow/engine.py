@@ -48,25 +48,27 @@ class AsyncSearchService(SearchService):
             loop: AbstractEventLoop = None
     ):
         self._loop = loop or asyncio.get_running_loop()
-        self._queue = queue or asyncio.PriorityQueue()
+        self._queue = queue or asyncio.PriorityQueue(maxsize=100)
+        self._search_tasks: list[asyncio.Task] = []
         super().__init__()
 
-        # start files already part of the runtime
         for file in self.runtime.files:
-            asyncio.ensure_future(self.search(file), loop=self._loop)
+            task = asyncio.ensure_future(self.search(file), loop=self._loop)
+            self._search_tasks.append(task)
 
     def add(self, obj: Any) -> None:
         self.runtime.add(obj)
         if isinstance(obj, ShellCommand):
-            asyncio.ensure_future(self.search(obj), loop=self._loop)
+            task = asyncio.ensure_future(self.search(obj), loop=self._loop)
+            self._search_tasks.append(task)
 
     async def loop(self, terminal: Any) -> None:
-        """pulls from the print queue and writes to terminal"""
         try:
             log.debug('search loop -> closed: %s', self.is_closed)
             while not self.is_closed:
                 dt, line = await self._queue.get()
                 terminal.emit_line(line)
+                await asyncio.sleep(0)
         except Exception:
             self.close()
             raise
@@ -74,55 +76,29 @@ class AsyncSearchService(SearchService):
             log.debug('finished search loop -> closed: %s', self.is_closed)
 
     async def open_file(self, file: Any) -> Any:
-        """
-        Open file for search using the ShellCommand.run() method.
-        Returns a process-like object (local subprocess or SSH process).
-        """
-        # ``file`` is expected to be a ShellCommand (or subclass) instance.
-        # ``run`` handles both local and remote execution.
         proc = await file.run()
         log.debug('open_file(%s) => %r', getattr(file, 'shell', '<no shell>'), proc)
         return proc
 
     def close(self):
-        # Ensure SSH connections are closed on shutdown
+        for task in self._search_tasks:
+            task.cancel()
+        self._search_tasks.clear()
         super().close()
-        # Schedule async cleanup (non-blocking)
         asyncio.ensure_future(close_all(), loop=self._loop)
 
     async def search(self, file: Any) -> None:
-        """
-        Search 'file' for 'section.patterns', queueing colorized output
-        for display.
-        """
         process = None
         try:
             process = await self.open_file(file)
             log.debug('search %r', process)
 
-            def close() -> None:
-                nonlocal process
-                log.debug('close subprocess %r', process)
-                try:
-                    if process.returncode is None:
-                        log.info('terminate %r', process)
-                        process.terminate()
-                    else:
-                        log.info('%r already terminated', process)
-                except (ProcessLookupError, OSError):
-                    pass
-
-            # while process is alive, search output for matches
-            # queue resulting matches for display
-            while not self.is_closed:
+            while True:
                 try:
                     assert process.stdout is not None
-                    byte_line = await asyncio.wait_for(
-                        process.stdout.readline(), 0.1)
-                except asyncio.TimeoutError:
-                    if process.returncode is not None:
-                        break
-                    continue
+                    byte_line = await process.stdout.readline()
+                except asyncio.CancelledError:
+                    break
 
                 if not byte_line:
                     break
@@ -134,12 +110,17 @@ class AsyncSearchService(SearchService):
                     dt = syslog_date(line)
                     tokens = colorize(matches, line)
                     color_line = tokens_to_str(self.runtime, tokens)
-                    self._queue.put_nowait((dt, color_line))
+                    await self._queue.put((dt, color_line))
+        except asyncio.CancelledError:
+            pass
         except Exception:
             log.exception('line search error')
             self.close()
-            if process is not None:
-                close()
         finally:
             log.debug('finished grep %r -> closed: %s',
                       file, self.is_closed)
+            if process is not None and process.returncode is None:
+                try:
+                    process.terminate()
+                except (ProcessLookupError, OSError):
+                    pass
