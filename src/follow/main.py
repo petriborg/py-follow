@@ -5,8 +5,7 @@ import sys
 import argparse
 
 from asyncio import AbstractEventLoop, DefaultEventLoopPolicy
-
-log = logging.getLogger()
+from .util import log
 
 
 def setup_logging(is_debug: bool) -> None:

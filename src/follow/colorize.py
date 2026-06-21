@@ -2,16 +2,13 @@
 Matching, colors, terminal string building
 """
 
-import logging
-
 from typing import Any, Iterable
 
 from .commands import Match, NegativeMatch, Color, MatchResult, AltReMatch
 from .util import (
     coerce_str as _str,
+    log,
 )
-
-log = logging.getLogger()
 
 
 def build_colors() -> dict[str, Color]:

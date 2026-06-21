@@ -4,7 +4,6 @@ Main search engine.
 
 import abc
 import asyncio
-import logging
 from typing import Any, Awaitable
 from asyncio import AbstractEventLoop, PriorityQueue
 
@@ -12,8 +11,7 @@ from .commands import ShellCommand
 from .ssh import close_all
 from .util import Closable, syslog_date, coerce_str as _str
 from .colorize import colorize, gather, tokens_to_str
-
-log = logging.getLogger()
+from .util import log
 
 
 class SearchService(Closable):

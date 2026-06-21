@@ -2,7 +2,6 @@
 Command line interface (prompt-toolkit version)
 """
 import asyncio
-import logging
 import os
 import sys
 from typing import Any, Callable
@@ -16,11 +15,7 @@ from prompt_toolkit.patch_stdout import patch_stdout
 
 from .commands import shell_commands, match_commands
 from .engine import SearchService
-from .util import (
-    Closable, term_help,
-)
-
-log = logging.getLogger()
+from .util import Closable, term_help, log
 
 
 class SearchCli(Closable):
@@ -101,7 +96,7 @@ class SearchCli(Closable):
             while not self.is_closed:
                 try:
                     line = await self._session.prompt_async(self.prompt)
-                except EOFError:
+                except (EOFError, KeyboardInterrupt):
                     self.close()
                     self.service.close()
                 else:

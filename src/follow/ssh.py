@@ -7,13 +7,13 @@ try:
 except ImportError as _asyncssh_import_error:
     asyncssh = None
     _import_error = _asyncssh_import_error
-import logging
 from typing import Dict, Tuple
+from .util import log
 
-log = logging.getLogger(__name__)
 
 # Global connection cache: (user, host) -> SSHClient
 _connections: Dict[Tuple[str | None, str], asyncssh.SSHClient] = {}
+
 
 async def get_client(user: str | None, host: str) -> asyncssh.SSHClient:
     """Return a cached SSHClient for ``host``/``user`` or create a new one.
@@ -35,6 +35,7 @@ async def get_client(user: str | None, host: str) -> asyncssh.SSHClient:
     client = await asyncssh.connect(host, **kwargs)
     _connections[key] = client
     return client
+
 
 async def close_all() -> None:
     """Close all cached SSH connections gracefully."""

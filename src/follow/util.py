@@ -12,7 +12,7 @@ from textwrap import wrap
 from shutil import get_terminal_size
 from datetime import datetime
 
-log = logging.getLogger()
+log = logging.getLogger('follow')
 path_re = re.compile(r'([^@]*@)?([^:]*:)?([^:]*)')
 _isdigit_re = re.compile(r'[0-9]*')
 
