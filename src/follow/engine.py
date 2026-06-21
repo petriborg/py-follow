@@ -65,12 +65,8 @@ class AsyncSearchService(SearchService):
         try:
             log.debug('search loop -> closed: %s', self.is_closed)
             while not self.is_closed:
-                try:
-                    dt, line = self._queue.get_nowait()
-                except asyncio.QueueEmpty:
-                    await asyncio.sleep(0.1)
-                else:
-                    terminal.emit_line(line)
+                dt, line = await self._queue.get()
+                terminal.emit_line(line)
         except Exception:
             self.close()
             raise
