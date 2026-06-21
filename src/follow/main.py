@@ -58,6 +58,14 @@ async def async_main(options: argparse.Namespace) -> None:
 
     await asyncio.gather(cmdline.loop(), service.loop(cmdline))
 
+    # Cancel any remaining background tasks (search, close_all, etc.)
+    me = asyncio.current_task()
+    pending = [t for t in asyncio.all_tasks() if t is not me]
+    for t in pending:
+        t.cancel()
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
+
 
 def main() -> None:
     setup_logging('--debug' in sys.argv)
