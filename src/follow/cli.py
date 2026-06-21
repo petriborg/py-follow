@@ -49,6 +49,7 @@ class SearchCli(Closable):
         self._session = PromptSession(
             history=FileHistory(history_path),
             completer=WordCompleter(list(self._commands)),
+            complete_while_typing=False,
         )
 
     # ---------------------------------------------------------------------
